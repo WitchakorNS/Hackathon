@@ -1,0 +1,21 @@
+{
+  "_comment": "Local canonical reference (stands in for the Postgres CHEBI cache in dev, per Devflow Stage 0.3). Layer 1 resolves raw feature labels -> chebi_id against this. Swap for a real SDF/CHEBI dump later without touching downstream layers.",
+  "metabolites": [
+    {"chebi_id": "CHEBI:422",   "hmdb_id": "HMDB0000190", "kegg_id": "C00186", "name": "L-Lactic acid",   "synonyms": ["lactate", "lactic acid", "l-lactate"]},
+    {"chebi_id": "CHEBI:30769", "hmdb_id": "HMDB0000148", "kegg_id": "C00158", "name": "Citric acid",      "synonyms": ["citrate"]},
+    {"chebi_id": "CHEBI:4167",  "hmdb_id": "HMDB0000122", "kegg_id": "C00031", "name": "D-Glucose",        "synonyms": ["glucose", "dextrose"]},
+    {"chebi_id": "CHEBI:6650",  "hmdb_id": "HMDB0000223", "kegg_id": "C00149", "name": "Malic acid",       "synonyms": ["malate", "l-malate"]},
+    {"chebi_id": "CHEBI:16977", "hmdb_id": "HMDB0000042", "kegg_id": "C00041", "name": "L-Alanine",        "synonyms": ["alanine", "ala"]},
+    {"chebi_id": "CHEBI:15741", "hmdb_id": "HMDB0000156", "kegg_id": "C00042", "name": "Succinic acid",    "synonyms": ["succinate"]},
+    {"chebi_id": "CHEBI:18050", "hmdb_id": "HMDB0000243", "kegg_id": "C00064", "name": "L-Glutamine",      "synonyms": ["glutamine", "gln"]},
+    {"chebi_id": "CHEBI:15361", "hmdb_id": "HMDB0000112", "kegg_id": "C00022", "name": "Pyruvic acid",     "synonyms": ["pyruvate"]},
+    {"chebi_id": "CHEBI:16015", "hmdb_id": "HMDB0000259", "kegg_id": "C00025", "name": "L-Glutamic acid",  "synonyms": ["glutamate", "glutamic acid", "glu"]}
+  ],
+  "kegg_pathways": [
+    {"pathway_id": "map00010", "name": "Glycolysis / Gluconeogenesis",        "chebi_members": ["CHEBI:4167", "CHEBI:15361", "CHEBI:422"]},
+    {"pathway_id": "map00020", "name": "Citrate cycle (TCA cycle)",           "chebi_members": ["CHEBI:30769", "CHEBI:6650", "CHEBI:15741", "CHEBI:15361"]},
+    {"pathway_id": "map00250", "name": "Alanine, aspartate and glutamate metabolism", "chebi_members": ["CHEBI:16977", "CHEBI:16015", "CHEBI:15741"]},
+    {"pathway_id": "map00470", "name": "D-Glutamine and D-glutamate metabolism", "chebi_members": ["CHEBI:18050", "CHEBI:16015"]},
+    {"pathway_id": "map00620", "name": "Pyruvate metabolism",                 "chebi_members": ["CHEBI:15361", "CHEBI:422", "CHEBI:6650", "CHEBI:15741"]}
+  ]
+}

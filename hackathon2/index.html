@@ -1,0 +1,2916 @@
+
+<!doctype html>
+<html lang="th" class="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            Metabolic Signature Discovery Platform - พื้นที่ปฏิบัติการวิจัย
+        </title>
+
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: [
+                                '"IBM Plex Sans Thai"',
+                                '"Inter"',
+                                "sans-serif",
+                            ],
+                            mono: [
+                                '"JetBrains Mono"',
+                                "ui-monospace",
+                                "monospace",
+                            ],
+                        },
+                        colors: {
+                            brand: {
+                                orange: "#ff7c00",
+                                orangeHover: "#e06d00",
+                                orangeLight: "#fff2e5",
+                            },
+                            workspace: {
+                                bg: "#F8FAFC",
+                                sidebar: "#FAFAFA",
+                                panel: "#FFFFFF",
+                                border: "#E5E7EB",
+                                divider: "#ECECEC",
+                                hover: "#F3F4F6",
+                                selected: "#EEF4FF",
+                            },
+                            content: {
+                                main: "#111827",
+                                secondary: "#6B7280",
+                                muted: "#9CA3AF",
+                            },
+                        },
+                        spacing: {
+                            1: "4px",
+                            2: "8px",
+                            3: "12px",
+                            4: "16px",
+                            6: "24px",
+                            8: "32px",
+                            12: "48px",
+                            16: "64px",
+                        },
+                        boxShadow: {
+                            soft: "0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.02)",
+                            floating:
+                                "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03)",
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <!-- Fonts & Icons -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+        <!-- Cytoscape.js for Dynamic Network Rendering -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+
+        <style>
+            body {
+                font-family: "IBM Plex Sans Thai", "Inter", sans-serif;
+                background-color: #f8fafc;
+                color: #111827;
+                overflow: hidden;
+            }
+
+            .gr-box {
+                background-color: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+                transition:
+                    border-color 0.15s ease,
+                    box-shadow 0.15s ease;
+            }
+
+            .gr-label {
+                font-size: 14px;
+                font-weight: 500;
+                color: #6b7280;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .interactive-node {
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .interactive-node:hover {
+                stroke-width: 3px;
+                filter: drop-shadow(0 0 6px rgba(255, 124, 0, 0.5));
+                transform: scale(1.12);
+            }
+
+            /* Custom Scrollbar for Scientific Look */
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #d1d5db;
+                border-radius: 4px;
+                border: 2px solid #f8fafc;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #9ca3af;
+            }
+
+            .text-scientific-title {
+                font-size: 24px;
+                font-weight: 500;
+                letter-spacing: -0.01em;
+                line-height: 1.3;
+            }
+            .text-scientific-card {
+                font-size: 16px;
+                font-weight: 600;
+            }
+            .text-scientific-body {
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            .text-scientific-caption {
+                font-size: 12px;
+                color: #6b7280;
+            }
+
+            th {
+                font-weight: 600;
+                font-size: 12px;
+                color: #6b7280;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 12px;
+            }
+            td {
+                font-size: 14px;
+                padding: 12px;
+            }
+            tr:hover td {
+                background-color: #f3f4f6;
+            }
+
+            .tab-panel {
+                animation: fadeIn 0.25s ease-out forwards;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(4px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            /* Cytoscape Map Container */
+            #cy {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 10;
+            }
+
+            /* Toast Popup CSS */
+            .toast-enter {
+                animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)
+                    forwards;
+            }
+            .toast-leave {
+                animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)
+                    forwards;
+            }
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        </style>
+    </head>
+    <body class="h-screen flex flex-col antialiased">
+        <!-- Toast Notification Container -->
+        <div
+            id="toast-container"
+            class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"
+        ></div>
+
+        <!-- Top Navigation (Workspace Style) -->
+        <header
+            class="h-14 bg-white border-b border-workspace-border px-4 flex items-center justify-between shrink-0 z-40 shadow-sm"
+        >
+            <div class="flex items-center gap-6">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <i
+                        class="ph-fill ph-hexagon text-brand-orange text-2xl"
+                    ></i>
+                    <h1
+                        class="text-[15px] font-bold text-content-main tracking-tight"
+                    >
+                        Metabolic Signature
+                    </h1>
+                </div>
+
+                <div class="h-4 w-px bg-workspace-divider"></div>
+
+                <!-- Context Indicators -->
+                <div class="flex items-center gap-4 text-sm">
+                    <div
+                        class="flex items-center gap-2 px-2.5 py-1.5 hover:bg-workspace-hover rounded cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                        onclick="
+                            showToast(
+                                'พื้นที่ทำงาน',
+                                'สลับพื้นที่ทำงานไปยังโปรเจ็กต์หลัก',
+                            )
+                        "
+                    >
+                        <i class="ph ph-folder text-brand-orange"></i>
+                        <span class="text-content-secondary font-medium"
+                            >พื้นที่ทำงาน:</span
+                        >
+                        <span class="text-content-main font-semibold"
+                            >MetaSig-01</span
+                        >
+                        <i
+                            class="ph ph-caret-down text-content-muted text-xs"
+                        ></i>
+                    </div>
+                    <div
+                        class="flex items-center gap-2 px-2.5 py-1.5 hover:bg-workspace-hover rounded cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                        onclick="
+                            showToast(
+                                'ชุดข้อมูลหลัก',
+                                'Cohort_A_2026.csv เป็นข้อมูลสเปกตรัมที่ประมวลผลแล้ว',
+                            )
+                        "
+                    >
+                        <i class="ph ph-database text-brand-orange"></i>
+                        <span class="text-content-secondary font-medium"
+                            >ชุดข้อมูล:</span
+                        >
+                        <span class="text-content-main font-semibold"
+                            >Cohort_A_2026.csv</span
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- GPU Status Badge (Premium Redesign) -->
+                <div
+                    class="flex items-center gap-2 px-3 py-1 bg-[#1E293B] border border-gray-800 rounded-lg text-xs font-semibold shadow-md"
+                >
+                    <span class="relative flex h-2 w-2">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                        ></span>
+                        <span
+                            class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+                        ></span>
+                    </span>
+                    <span
+                        class="text-gray-300 font-mono text-[10px] tracking-wide uppercase"
+                        >GPU Stack</span
+                    >
+                    <span
+                        class="text-emerald-400 font-mono text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800"
+                        >MIG 1g.10gb</span
+                    >
+                </div>
+
+                <div class="h-4 w-px bg-workspace-divider mx-1"></div>
+
+                <button
+                    class="p-1.5 text-content-secondary hover:text-brand-orange hover:bg-workspace-hover rounded transition-colors"
+                    title="ส่งออกรายงาน"
+                    onclick="switchTab('export')"
+                >
+                    <i class="ph ph-export text-lg"></i>
+                </button>
+                <button
+                    class="p-1.5 text-content-secondary hover:text-brand-orange hover:bg-workspace-hover rounded transition-colors"
+                    title="การแจ้งเตือน"
+                    onclick="
+                        showToast(
+                            'ระบบส่งข้อความ',
+                            'ไม่มีข้อมูลรายงานข้อผิดพลาดใหม่เข้ามาในระบบ',
+                        )
+                    "
+                >
+                    <i class="ph ph-bell text-lg"></i>
+                </button>
+                <button
+                    class="p-1.5 text-content-secondary hover:text-brand-orange hover:bg-workspace-hover rounded transition-colors"
+                    title="ความช่วยเหลือ"
+                    onclick="
+                        showToast(
+                            'คู่มือความรู้',
+                            'เปิดคู่มือการทำงานแบบบูรณาการหลักฐานชีวภาพ',
+                        )
+                    "
+                >
+                    <i class="ph ph-question text-lg"></i>
+                </button>
+                <button
+                    class="ml-2 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200"
+                >
+                    นว
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Left Sidebar (Navigation & Pipeline) -->
+            <aside
+                class="w-[240px] bg-workspace-sidebar border-r border-workspace-border flex flex-col shrink-0 z-30"
+            >
+                <!-- Global Run Action -->
+                <div class="p-4 border-b border-workspace-border bg-white">
+                    <button
+                        id="btn-run-pipeline"
+                        onclick="simulatePipeline()"
+                        class="w-full bg-brand-orange hover:bg-brand-orangeHover text-white font-semibold py-2 px-4 rounded shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                        <i
+                            id="run-icon"
+                            class="ph-fill ph-play-circle text-lg"
+                        ></i>
+                        <span>รันไพป์ไลน์ข้อมูล</span>
+                    </button>
+
+                    <div class="mt-3 hidden" id="pipeline-progress-container">
+                        <div
+                            class="flex justify-between text-xs text-content-secondary mb-1"
+                        >
+                            <span
+                                id="pipeline-step-text"
+                                class="truncate w-4/5 font-medium"
+                                >กำลังรันระบบ...</span
+                            >
+                            <span
+                                id="pipeline-pct-text"
+                                class="font-mono text-brand-orange font-semibold"
+                                >0%</span
+                            >
+                        </div>
+                        <div
+                            class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden"
+                        >
+                            <div
+                                id="pipeline-progress-bar"
+                                class="bg-brand-orange h-1.5 w-0 transition-all duration-300"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Sections -->
+                <div class="flex-1 overflow-y-auto py-2">
+                    <div class="px-4 py-2">
+                        <p
+                            class="text-[10px] font-bold text-content-muted uppercase tracking-widest mb-1 px-1"
+                        >
+                            ระบบงานหลัก
+                        </p>
+                        <nav class="space-y-1">
+                            <button
+                                onclick="switchTab('overview')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm font-semibold bg-workspace-selected text-brand-orange"
+                                data-tab="overview"
+                            >
+                                <i class="ph ph-squares-four text-lg"></i>
+                                ภาพรวมแผงควบคุม
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div class="px-4 py-2">
+                        <p
+                            class="text-[10px] font-bold text-content-muted uppercase tracking-widest mb-1 px-1"
+                        >
+                            การเตรียมข้อมูล
+                        </p>
+                        <nav class="space-y-1">
+                            <button
+                                onclick="switchTab('resolution')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="resolution"
+                            >
+                                <i
+                                    class="ph ph-list-magnifying-glass text-lg"
+                                ></i>
+                                การจับคู่รหัสสาร (IDs)
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div class="px-4 py-2">
+                        <p
+                            class="text-[10px] font-bold text-content-muted uppercase tracking-widest mb-1 px-1"
+                        >
+                            เฟสการวิเคราะห์
+                        </p>
+                        <nav class="space-y-1">
+                            <button
+                                onclick="switchTab('differential')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="differential"
+                            >
+                                <i class="ph ph-scales text-lg"></i>
+                                สถิติเชิงเปรียบเทียบ
+                            </button>
+                            <button
+                                onclick="switchTab('network')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="network"
+                            >
+                                <i class="ph ph-graph text-lg"></i>
+                                เครือข่ายสัมพันธ์
+                            </button>
+                            <button
+                                onclick="switchTab('modules')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="modules"
+                            >
+                                <i class="ph ph-bounding-box text-lg"></i>
+                                คลัสเตอร์สถิติ (Modules)
+                            </button>
+                            <button
+                                onclick="switchTab('pathway')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="pathway"
+                            >
+                                <i class="ph ph-dna text-lg"></i> เส้นทางชีวเคมี
+                            </button>
+                            <button
+                                onclick="switchTab('ml')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="ml"
+                            >
+                                <i class="ph ph-brain text-lg"></i>
+                                ปัญญาประดิษฐ์ & SHAP
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div class="px-4 py-2">
+                        <p
+                            class="text-[10px] font-bold text-content-muted uppercase tracking-widest mb-1 px-1"
+                        >
+                            ผลสรุปและเผยแพร่
+                        </p>
+                        <nav class="space-y-1">
+                            <button
+                                onclick="switchTab('signature')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="signature"
+                            >
+                                <i class="ph ph-certificate text-lg"></i>
+                                แผนที่ลายพิมพ์ชีวภาพ
+                            </button>
+                            <button
+                                onclick="switchTab('export')"
+                                class="tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm text-content-secondary hover:bg-workspace-hover transition-colors"
+                                data-tab="export"
+                            >
+                                <i class="ph ph-export text-lg"></i>
+                                ส่งออกผลลัพธ์การวิจัย
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Mini Terminal Log -->
+                <div
+                    class="h-32 bg-white border-t border-workspace-border flex flex-col shrink-0"
+                >
+                    <div
+                        class="px-3 py-1.5 border-b border-workspace-divider bg-workspace-sidebar flex items-center gap-2"
+                    >
+                        <i class="ph ph-terminal-window text-content-muted"></i>
+                        <span
+                            class="text-[10px] text-content-secondary font-bold uppercase tracking-wider"
+                            >บันทึกสถิติระบบ</span
+                        >
+                    </div>
+                    <div
+                        class="p-2 text-content-secondary font-mono text-[10px] overflow-y-auto flex-1 space-y-1 bg-workspace-bg"
+                        id="log-terminal"
+                    >
+                        <div class="text-green-600">
+                            [ระบบ] เปิดพื้นที่ทำงานวิจัยหลัก MetaSig-01 สำเร็จ
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Main Area (Dynamic Panels) -->
+            <main
+                class="flex-1 flex flex-col bg-workspace-bg relative overflow-hidden min-w-0"
+            >
+                <!-- Global Context & Search Header -->
+                <div
+                    class="h-12 border-b border-workspace-border bg-white px-4 flex items-center justify-between shrink-0 z-20 shadow-sm"
+                >
+                    <!-- Search Bar -->
+                    <div class="relative w-96 group">
+                        <i
+                            class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-content-muted group-focus-within:text-brand-orange transition-colors"
+                        ></i>
+                        <input
+                            type="text"
+                            id="global-search"
+                            placeholder="ค้นหาโมเลกุล, พาร์ทเวย์, รหัส (เช่น 'lac', 'citric')"
+                            onkeyup="handleSearch(event)"
+                            class="w-full bg-workspace-bg border border-workspace-border rounded-md py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:border-brand-orange focus:ring-1 focus:ring-brand-orange transition-all placeholder:text-content-muted text-gray-700"
+                        />
+                        <div
+                            class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1"
+                        >
+                            <span
+                                class="text-[10px] bg-white border border-workspace-border px-1.5 rounded text-content-muted font-mono"
+                                >⌘</span
+                            >
+                            <span
+                                class="text-[10px] bg-white border border-workspace-border px-1.5 rounded text-content-muted font-mono"
+                                >K</span
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        id="active-panel-title"
+                        class="text-sm font-semibold text-content-secondary border border-gray-200 bg-gray-50 px-2 py-1 rounded"
+                    >
+                        ภาพรวมแผงควบคุม
+                    </div>
+                </div>
+
+                <!-- Scrollable Content Area -->
+                <div class="flex-1 overflow-y-auto p-6 relative">
+                    <!-- ================= TAB 1: OVERVIEW ================= -->
+                    <section
+                        id="panel-overview"
+                        class="tab-panel space-y-6 max-w-5xl mx-auto"
+                    >
+                        <!-- Signature Narrative Box -->
+                        <div
+                            class="gr-box p-6 bg-white border border-workspace-border relative overflow-hidden"
+                        >
+                            <div
+                                class="absolute right-2 top-2 p-6 opacity-5 pointer-events-none"
+                            >
+                                <i
+                                    class="ph ph-quotes text-8xl text-brand-orange"
+                                ></i>
+                            </div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <i
+                                    class="ph ph-sparkle text-brand-orange text-lg"
+                                ></i>
+                                <span class="text-scientific-card"
+                                    >บทวิเคราะห์ลายพิมพ์ทางชีวภาพ (Signature
+                                    Narrative)</span
+                                >
+                            </div>
+                            <p
+                                class="text-scientific-body text-content-main max-w-4xl text-[14.5px] leading-relaxed"
+                            >
+                                ลายพิมพ์ทางเมตาบอลิกหลักถูกขับเคลื่อนโดยศูนย์กลางสำคัญคือ
+                                <button
+                                    onclick="selectMetabolite('HMDB0000190')"
+                                    class="font-bold text-brand-orange bg-brand-orangeLight px-1.5 py-0.5 rounded hover:bg-orange-100 transition-colors"
+                                >
+                                    L-Lactic acid (HMDB0000190)
+                                </button>
+                                ภายในเส้นทางชีวภาพ
+                                <span
+                                    class="font-semibold bg-gray-100 px-1.5 py-0.5 border border-gray-200 cursor-pointer hover:bg-gray-200 rounded"
+                                    onclick="switchTab('pathway')"
+                                    >TCA Cycle</span
+                                >
+                                การเปลี่ยนแปลงนี้ได้รับการยืนยันระดับสูงจากการวิเคราะห์ด้วยปัญญาประดิษฐ์
+                                (SHAP) ร่วมกับการแปรสภาพกลุ่มย่อยเชิงสถิติ
+                                (Module M1) โดยมีความเชื่อมั่นระดับสูงสุด
+                                <span class="font-mono font-bold"
+                                    >(Score = 0.87)</span
+                                >
+                                สะท้อนถึงความผิดปกติของวิถีจัดสรรพลังงานระดับเซลล์อย่างรุนแรง
+                            </p>
+                        </div>
+
+                        <!-- KPI Tiles Grid -->
+                        <div class="grid grid-cols-4 gap-4">
+                            <div
+                                class="gr-box p-4 flex flex-col justify-between hover:border-gray-300 transition-colors cursor-pointer"
+                                onclick="switchTab('ml')"
+                            >
+                                <span
+                                    class="text-scientific-caption flex items-center gap-1.5"
+                                    ><i
+                                        class="ph ph-chart-line-up text-brand-orange"
+                                    ></i>
+                                    ประสิทธิภาพโมเดล (AUC)</span
+                                >
+                                <div class="mt-2 flex items-baseline gap-2">
+                                    <span
+                                        class="text-2xl font-bold font-mono text-content-main"
+                                        >0.89</span
+                                    >
+                                    <span
+                                        class="text-xs text-green-600 font-bold bg-green-50 border border-green-200 px-1 py-0.5 rounded"
+                                        >ยอดเยี่ยม</span
+                                    >
+                                </div>
+                            </div>
+                            <div
+                                class="gr-box p-4 flex flex-col justify-between hover:border-gray-300 transition-colors cursor-pointer"
+                                onclick="switchTab('signature')"
+                            >
+                                <span
+                                    class="text-scientific-caption flex items-center gap-1.5"
+                                    ><i
+                                        class="ph ph-shield-check text-brand-orange"
+                                    ></i>
+                                    ความสอดคล้องสูงสุด</span
+                                >
+                                <div class="mt-2 flex items-baseline gap-2">
+                                    <span
+                                        class="text-2xl font-bold text-content-main"
+                                        >High</span
+                                    >
+                                    <span
+                                        class="text-[10px] border border-gray-200 bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded font-bold"
+                                        >Tier 1</span
+                                    >
+                                </div>
+                            </div>
+                            <div
+                                class="gr-box p-4 flex flex-col justify-between hover:border-gray-300 transition-colors cursor-pointer"
+                                onclick="switchTab('differential')"
+                            >
+                                <span
+                                    class="text-scientific-caption flex items-center gap-1.5"
+                                    ><i
+                                        class="ph ph-atom text-brand-orange"
+                                    ></i>
+                                    ไบโอมาร์กเกอร์เด่น</span
+                                >
+                                <div class="mt-2 flex items-baseline gap-2">
+                                    <span
+                                        class="text-2xl font-bold font-mono text-content-main"
+                                        >42</span
+                                    >
+                                    <span
+                                        class="text-xs text-content-secondary font-medium"
+                                        >ฟีเจอร์</span
+                                    >
+                                </div>
+                            </div>
+                            <div
+                                class="gr-box p-4 flex flex-col justify-between border-b-4 border-b-amber-400 hover:border-gray-300 transition-colors cursor-pointer"
+                                onclick="switchTab('resolution')"
+                            >
+                                <span
+                                    class="text-scientific-caption flex items-center gap-1.5"
+                                    ><i
+                                        class="ph ph-warning-circle text-amber-600"
+                                    ></i>
+                                    สารตกหล่นการระบุ ID</span
+                                >
+                                <div class="mt-2 flex items-baseline gap-2">
+                                    <span
+                                        class="text-2xl font-bold font-mono text-content-main"
+                                        >12</span
+                                    >
+                                    <span
+                                        class="text-xs text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100"
+                                        >รอตรวจสอบ</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-6">
+                            <!-- Top Biomarkers -->
+                            <div class="gr-box p-5">
+                                <div
+                                    class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2"
+                                >
+                                    <span class="text-scientific-card"
+                                        >ขนาดผลกระทบสูงสุด (Top Biomarkers by
+                                        Effect Size)</span
+                                    >
+                                    <button
+                                        class="text-xs text-brand-orange font-bold hover:underline"
+                                        onclick="switchTab('differential')"
+                                    >
+                                        ดูทั้งหมด
+                                    </button>
+                                </div>
+                                <div class="space-y-4" id="overview-biomarkers">
+                                    <!-- Rendered dynamically by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Pathway Enrichment Summary -->
+                            <div class="gr-box p-5">
+                                <div
+                                    class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2"
+                                >
+                                    <span class="text-scientific-card"
+                                        >พาร์ทเวย์ที่ได้รับผลกระทบเด่น (Enriched
+                                        Pathways)</span
+                                    >
+                                    <button
+                                        class="text-xs text-brand-orange font-bold hover:underline"
+                                        onclick="switchTab('pathway')"
+                                    >
+                                        วิเคราะห์แผนผัง
+                                    </button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div
+                                        class="p-3 bg-workspace-bg border border-workspace-border rounded-lg cursor-pointer hover:border-brand-orange hover:bg-brand-orangeLight/20 transition-all flex justify-between items-center group"
+                                        onclick="switchTab('pathway')"
+                                    >
+                                        <div>
+                                            <span
+                                                class="text-sm font-semibold block text-content-main group-hover:text-brand-orange transition-colors"
+                                                >Citrate cycle (TCA cycle)</span
+                                            >
+                                            <span
+                                                class="text-xs text-content-secondary mt-0.5"
+                                                >พบเมตาบอไลต์ร่วมเครือข่าย: 6
+                                                สาร</span
+                                            >
+                                        </div>
+                                        <span
+                                            class="font-mono text-xs font-bold bg-white border border-gray-200 px-2 py-1 rounded text-red-600"
+                                            >FDR: 0.003</span
+                                        >
+                                    </div>
+                                    <div
+                                        class="p-3 bg-workspace-bg border border-workspace-border rounded-lg cursor-pointer hover:border-brand-orange hover:bg-brand-orangeLight/20 transition-all flex justify-between items-center group"
+                                        onclick="switchTab('pathway')"
+                                    >
+                                        <div>
+                                            <span
+                                                class="text-sm font-semibold block text-content-main group-hover:text-brand-orange transition-colors"
+                                                >Glycolysis /
+                                                Gluconeogenesis</span
+                                            >
+                                            <span
+                                                class="text-xs text-content-secondary mt-0.5"
+                                                >พบเมตาบอไลต์ร่วมเครือข่าย: 11
+                                                สาร</span
+                                            >
+                                        </div>
+                                        <span
+                                            class="font-mono text-xs font-bold bg-white border border-gray-200 px-2 py-1 rounded text-orange-600"
+                                            >FDR: 0.012</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 2: RESOLUTION ================= -->
+                    <section
+                        id="panel-resolution"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="gr-box overflow-hidden">
+                            <div
+                                class="p-5 border-b border-gray-200 bg-white flex justify-between items-center"
+                            >
+                                <div>
+                                    <span class="text-scientific-card"
+                                        >การแปลรหัสระบุเอกลักษณ์โมเลกุล (ID
+                                        Resolution Summary)</span
+                                    >
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        ตรวจสอบและแมปชื่อสารเคมีดิบให้สอดคล้องกับตัวย่อสากล
+                                    </p>
+                                </div>
+                                <div class="flex gap-2 text-xs">
+                                    <span
+                                        class="px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded"
+                                        >จับคู่สำเร็จ: 98.6%</span
+                                    >
+                                    <span
+                                        class="px-2.5 py-1.5 bg-red-50 border border-red-200 text-red-700 font-bold rounded"
+                                        >สารที่ไม่มีในคลังระบบ: 12 รายการ</span
+                                    >
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="pl-6">
+                                                ชื่อเดิมเมตาบอไลต์ (Original
+                                                Name)
+                                            </th>
+                                            <th>HMDB ID</th>
+                                            <th>KEGG ID</th>
+                                            <th class="text-center">
+                                                ระดับความน่าเชื่อถือ
+                                            </th>
+                                            <th class="text-right pr-6">
+                                                แหล่งค้นพบรหัส
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        class="divide-y divide-gray-100 bg-white"
+                                        id="resolution-tbody"
+                                    >
+                                        <!-- Rendered dynamically by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Unresolved list -->
+                        <div class="gr-box p-5 bg-white border border-gray-200">
+                            <span
+                                class="text-scientific-card text-red-700 block mb-2"
+                                ><i class="ph ph-warning-octagon"></i>
+                                สารที่ไม่ผ่านกระบวนการระบุตัวตน (Unresolved
+                                Compounds for Manual Review)</span
+                            >
+                            <p class="text-xs text-gray-500 mb-4">
+                                โมเลกุลต่อไปนี้ไม่สามารถแมปเข้ากับคลังอ้างอิงของ
+                                HMDB, KEGG, PubChem หรือแคชระบบได้
+                                และจะไม่ถูกนำเข้าระบบคำนวณขั้นพาร์ทเวย์
+                            </p>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div
+                                    class="p-2 border border-gray-200 rounded font-mono text-xs text-gray-700 bg-gray-50 flex justify-between items-center"
+                                >
+                                    <span>Unknown_247.1132</span>
+                                    <span
+                                        class="text-[10px] text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200 font-sans"
+                                        >ตรวจไม่พบ</span
+                                    >
+                                </div>
+                                <div
+                                    class="p-2 border border-gray-200 rounded font-mono text-xs text-gray-700 bg-gray-50 flex justify-between items-center"
+                                >
+                                    <span>Hexose_isomer_102</span>
+                                    <span
+                                        class="text-[10px] text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200 font-sans"
+                                        >คลาดเคลื่อน</span
+                                    >
+                                </div>
+                                <div
+                                    class="p-2 border border-gray-200 rounded font-mono text-xs text-gray-700 bg-gray-50 flex justify-between items-center"
+                                >
+                                    <span>Metabolite_peak_384</span>
+                                    <span
+                                        class="text-[10px] text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200 font-sans"
+                                        >ตรวจไม่พบ</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 3: DIFFERENTIAL ANALYSIS ================= -->
+                    <section
+                        id="panel-differential"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="gr-box p-6">
+                            <div
+                                class="flex items-center justify-between mb-6 border-b border-gray-100 pb-3"
+                            >
+                                <div>
+                                    <span class="text-scientific-card block"
+                                        >กราฟภูเขาไฟ (Volcano Plot
+                                        Diagram)</span
+                                    >
+                                    <span class="text-xs text-gray-500"
+                                        >เปรียบเทียบค่าความต่างสถิติ (FDR
+                                        Adjusted p-value)
+                                        กับขนาดระดับสารที่เปลี่ยนไป (Log2 Fold
+                                        Change)</span
+                                    >
+                                </div>
+                                <div class="flex gap-2">
+                                    <button
+                                        class="px-2.5 py-1.5 text-xs font-semibold border border-workspace-border rounded bg-white hover:bg-workspace-hover transition-colors flex items-center gap-1"
+                                        onclick="
+                                            showToast(
+                                                'การส่งออกกราฟ',
+                                                'กำลังสร้างภาพเวกเตอร์สำหรับ Volcano Plot',
+                                                'success',
+                                            )
+                                        "
+                                    >
+                                        <i class="ph ph-export"></i> ส่งออก SVG
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-6">
+                                <!-- Plot Area -->
+                                <div
+                                    class="w-2/3 h-80 bg-white border border-workspace-border rounded-lg relative flex items-center justify-center shadow-inner overflow-hidden"
+                                >
+                                    <!-- Grid -->
+                                    <div
+                                        class="absolute inset-0 grid grid-cols-6 grid-rows-4 pointer-events-none opacity-40"
+                                    >
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-b border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-r border-workspace-divider"
+                                        ></div>
+                                        <div
+                                            class="border-r border-workspace-divider"
+                                        ></div>
+                                        <div></div>
+                                    </div>
+
+                                    <!-- Thresholds -->
+                                    <div
+                                        class="absolute bottom-16 left-0 right-0 border-t border-dashed border-red-300 z-10 pointer-events-none"
+                                    >
+                                        <span
+                                            class="absolute right-2 -top-4.5 text-[9px] text-red-500 font-mono font-bold bg-white px-1"
+                                            >adj. p = 0.05</span
+                                        >
+                                    </div>
+                                    <div
+                                        class="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-gray-400 z-10 pointer-events-none"
+                                    ></div>
+
+                                    <!-- Dynamic SVG Nodes -->
+                                    <svg
+                                        class="absolute inset-0 w-full h-full z-20 overflow-visible"
+                                        id="volcano-svg"
+                                    >
+                                        <!-- Rendered dynamically by JS -->
+                                    </svg>
+
+                                    <div
+                                        class="absolute bottom-2 left-2 text-[10px] text-content-muted font-sans flex items-center gap-1 font-semibold"
+                                    >
+                                        <i class="ph ph-arrow-left"></i>
+                                        แสดงระดับลดลง (Down-regulated)
+                                    </div>
+                                    <div
+                                        class="absolute bottom-2 right-2 text-[10px] text-content-muted font-sans flex items-center gap-1 font-semibold"
+                                    >
+                                        แสดงระดับเพิ่มขึ้น (Up-regulated)
+                                        <i class="ph ph-arrow-right"></i>
+                                    </div>
+                                    <div
+                                        class="absolute top-2 left-2 text-[10px] text-content-muted font-mono font-bold"
+                                    >
+                                        -log10(p-value)
+                                    </div>
+                                </div>
+
+                                <!-- Legend -->
+                                <div class="w-1/3 space-y-4">
+                                    <div
+                                        class="p-4 border border-red-100 rounded-lg bg-red-50/50"
+                                    >
+                                        <div
+                                            class="flex items-center gap-2 mb-2"
+                                        >
+                                            <div
+                                                class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"
+                                            ></div>
+                                            <span
+                                                class="text-sm font-bold text-red-900"
+                                                >Up-regulated (เพิ่มขึ้น)</span
+                                            >
+                                        </div>
+                                        <p
+                                            class="text-[11px] text-red-700/80 leading-relaxed"
+                                        >
+                                            ตรวจพบ 5
+                                            สารสำคัญที่ยกระดับขึ้นผิดปกติในกลุ่มติดเชื้ออย่างมีนัยสำคัญ
+                                        </p>
+                                    </div>
+                                    <div
+                                        class="p-4 border border-blue-100 rounded-lg bg-blue-50/50"
+                                    >
+                                        <div
+                                            class="flex items-center gap-2 mb-2"
+                                        >
+                                            <div
+                                                class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm"
+                                            ></div>
+                                            <span
+                                                class="text-sm font-bold text-blue-900"
+                                                >Down-regulated (ลดลง)</span
+                                            >
+                                        </div>
+                                        <p
+                                            class="text-[11px] text-blue-700/80 leading-relaxed"
+                                        >
+                                            ตรวจพบ 4
+                                            สารสำคัญที่ปรับลดระดับลงผิดปกติอย่างมีสถิตินัยสำคัญ
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="gr-box overflow-hidden">
+                            <div
+                                class="px-4 py-3 border-b border-workspace-border bg-white flex items-center justify-between"
+                            >
+                                <span class="text-scientific-card"
+                                    >ตารางความแตกต่างเชิงปริมาณ (Differential
+                                    Statistics Table)</span
+                                >
+                            </div>
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-3 pl-6">
+                                            สารเมตาบอไลต์ (Metabolite)
+                                        </th>
+                                        <th class="p-3 text-right">
+                                            Log2 Fold Change
+                                        </th>
+                                        <th class="p-3 text-right">
+                                            Effect Size (Cohen's d)
+                                        </th>
+                                        <th class="p-3 text-right pr-6">
+                                            FDR q-val
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    class="divide-y divide-workspace-border bg-white"
+                                    id="diff-tbody"
+                                >
+                                    <!-- Rendered dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 4: ASSOCIATION NETWORK ================= -->
+                    <section
+                        id="panel-network"
+                        class="tab-panel hidden space-y-4 max-w-5xl mx-auto h-full flex flex-col min-h-[600px]"
+                    >
+                        <div
+                            class="gr-box p-5 flex items-center justify-between shrink-0 bg-white z-10 relative shadow-sm"
+                        >
+                            <span class="text-scientific-card"
+                                >การประเมินโครงข่ายความสัมพันธ์ระหว่างกลุ่มสาร
+                                (Correlation Network Map)</span
+                            >
+                            <div class="flex gap-6 text-sm">
+                                <label
+                                    class="flex items-center gap-3 cursor-pointer"
+                                >
+                                    <span
+                                        class="text-content-secondary font-medium"
+                                        >ค่าเกณฑ์คัดกรอง (r Threshold):</span
+                                    >
+                                    <input
+                                        type="range"
+                                        min="0.3"
+                                        max="0.8"
+                                        step="0.05"
+                                        value="0.4"
+                                        class="w-28 accent-brand-orange cursor-pointer"
+                                        oninput="
+                                            updateNetworkThreshold(
+                                                parseFloat(this.value),
+                                            )
+                                        "
+                                    />
+                                    <span
+                                        class="font-mono font-bold bg-gray-100 px-2.5 py-1 rounded text-gray-700 border border-gray-200"
+                                        id="net-thresh"
+                                        >0.40</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="chk-stable-hubs"
+                                        checked
+                                        class="accent-brand-orange w-4 h-4 rounded cursor-pointer"
+                                        onchange="
+                                            toggleStableHubsFilter(this.checked)
+                                        "
+                                    />
+                                    <span
+                                        class="text-content-main font-semibold text-xs"
+                                        >เฉพาะกลุ่มโหนดศูนย์กลางเสถียร</span
+                                    >
+                                </label>
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex-1 bg-white border border-workspace-border rounded-lg relative overflow-hidden shadow-soft"
+                        >
+                            <!-- Network Toolbar (Top Left inside Cytoscape container) -->
+                            <div
+                                class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-floating flex flex-col z-30 overflow-hidden"
+                            >
+                                <button
+                                    onclick="cy.zoom(cy.zoom() + 0.15)"
+                                    class="p-2.5 hover:bg-brand-orangeLight hover:text-brand-orange border-b border-gray-100 transition-colors text-gray-600"
+                                    title="ซูมเข้าสู่ระบบความสัมพันธ์"
+                                >
+                                    <i
+                                        class="ph ph-magnifying-glass-plus text-lg"
+                                    ></i>
+                                </button>
+                                <button
+                                    onclick="cy.zoom(cy.zoom() - 0.15)"
+                                    class="p-2.5 hover:bg-brand-orangeLight hover:text-brand-orange border-b border-gray-100 transition-colors text-gray-600"
+                                    title="ซูมออกขยายมุมมอง"
+                                >
+                                    <i
+                                        class="ph ph-magnifying-glass-minus text-lg"
+                                    ></i>
+                                </button>
+                                <button
+                                    onclick="cy.fit()"
+                                    class="p-2.5 hover:bg-brand-orangeLight hover:text-brand-orange border-b border-gray-100 transition-colors text-gray-600"
+                                    title="จัดหน้าจอให้พอดีโหนดทั้งหมด"
+                                >
+                                    <i class="ph ph-corners-out text-lg"></i>
+                                </button>
+                                <button
+                                    onclick="reLayoutGraph()"
+                                    class="p-2.5 hover:bg-brand-orangeLight hover:text-brand-orange border-b border-gray-100 transition-colors text-gray-600"
+                                    title="คำนวณรูปแบบการจัดเรียงใหม่"
+                                >
+                                    <i class="ph ph-graph text-lg"></i>
+                                </button>
+                                <button
+                                    onclick="
+                                        showToast(
+                                            'ส่งออกโครงข่าย',
+                                            'กำลังสร้างแผนภาพโครงข่ายความเสถียรเป็นภาพความละเอียดสูง',
+                                            'success',
+                                        )
+                                    "
+                                    class="p-2.5 hover:bg-brand-orangeLight hover:text-brand-orange transition-colors text-gray-600"
+                                    title="บันทึกไฟล์ภาพโมเดล"
+                                >
+                                    <i class="ph ph-image text-lg"></i>
+                                </button>
+                            </div>
+
+                            <div
+                                class="absolute top-4 right-4 bg-white/95 backdrop-blur-sm border border-gray-200 p-3 rounded-lg shadow-sm text-[10px] space-y-1 font-mono z-30"
+                            >
+                                <div class="text-gray-500">
+                                    ความหนาแน่นโครงข่าย:
+                                    <span class="text-gray-800 font-bold"
+                                        >0.24</span
+                                    >
+                                </div>
+                                <div class="text-gray-500">
+                                    การทดสอบ Bootstrap:
+                                    <span class="text-gray-800 font-bold"
+                                        >100 Folds</span
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- Cytoscape Container -->
+                            <div id="cy" class="bg-[#fcfdfe]"></div>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 5: MODULES ================= -->
+                    <section
+                        id="panel-modules"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="gr-box p-6 bg-white">
+                            <div
+                                class="flex justify-between items-center mb-6 border-b border-gray-100 pb-3"
+                            >
+                                <span class="text-scientific-card"
+                                    >ผลการสกัดคลัสเตอร์กลไกร่วมชีวภาพ (Louvain
+                                    Metabolic Modules)</span
+                                >
+                                <span class="text-xs text-gray-500"
+                                    >วิเคราะห์หาโมเลกุลที่เหนี่ยวนำร่วมกันในแต่ละเงื่อนไขพยาธิสภาพ</span
+                                >
+                            </div>
+                            <div class="grid grid-cols-2 gap-6">
+                                <!-- Module 1 -->
+                                <div
+                                    class="border border-brand-orange/30 bg-brand-orangeLight/20 rounded-lg p-5 hover:shadow-soft transition-all cursor-pointer group"
+                                    onclick="
+                                        showToast(
+                                            'คลัสเตอร์วิเคราะห์',
+                                            'แสดงข้อมูลสถิติโมดูล Module M1 (กลุ่มสารคาร์โบไฮเดรต/พลังงาน)',
+                                        )
+                                    "
+                                >
+                                    <div
+                                        class="flex justify-between items-center mb-4"
+                                    >
+                                        <span
+                                            class="px-2.5 py-1 bg-brand-orange text-white text-[11px] font-bold rounded shadow-sm tracking-wider"
+                                            >Module M1 (Energy)</span
+                                        >
+                                        <span
+                                            class="text-xs font-mono text-gray-500 font-bold bg-white px-2 py-1 border border-gray-200 rounded shadow-sm"
+                                            >Stability (ARI): 0.88</span
+                                        >
+                                    </div>
+                                    <p
+                                        class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2"
+                                    >
+                                        แกนหลักสารชีวภาพภายในโมดูล (Top Members)
+                                    </p>
+                                    <p
+                                        class="text-xs font-mono text-gray-700 bg-white p-2.5 border border-gray-200 rounded leading-relaxed mb-4"
+                                    >
+                                        L-Lactic acid, Citric acid, L-Alanine,
+                                        Malic acid, Pyruvic acid
+                                    </p>
+                                    <div
+                                        class="border-t border-brand-orange/20 pt-3 flex justify-between items-center"
+                                    >
+                                        <span
+                                            class="text-xs font-bold text-gray-600"
+                                            >Eigenmetabolite Profile</span
+                                        >
+                                        <span
+                                            class="text-lg font-mono font-bold text-red-600"
+                                            >+1.42 (เพิ่มขึ้นสูง)</span
+                                        >
+                                    </div>
+                                </div>
+                                <!-- Module 2 -->
+                                <div
+                                    class="border border-gray-200 bg-gray-50 rounded-lg p-5 hover:shadow-soft transition-all cursor-pointer group"
+                                    onclick="
+                                        showToast(
+                                            'คลัสเตอร์วิเคราะห์',
+                                            'แสดงข้อมูลสถิติโมดูล Module M2 (กลุ่มสารอนุพันธ์ของกลูตามีน)',
+                                        )
+                                    "
+                                >
+                                    <div
+                                        class="flex justify-between items-center mb-4"
+                                    >
+                                        <span
+                                            class="px-2.5 py-1 bg-gray-600 text-white text-[11px] font-bold rounded shadow-sm tracking-wider"
+                                            >Module M2 (Nitrogen Shunt)</span
+                                        >
+                                        <span
+                                            class="text-xs font-mono text-gray-500 font-bold bg-white px-2 py-1 border border-gray-200 rounded shadow-sm"
+                                            >Stability (ARI): 0.74</span
+                                        >
+                                    </div>
+                                    <p
+                                        class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2"
+                                    >
+                                        แกนหลักสารชีวภาพภายในโมดูล (Top Members)
+                                    </p>
+                                    <p
+                                        class="text-xs font-mono text-gray-700 bg-white p-2.5 border border-gray-200 rounded leading-relaxed mb-4"
+                                    >
+                                        D-Glucose, Succinic acid, L-Glutamine,
+                                        L-Glutamic acid
+                                    </p>
+                                    <div
+                                        class="border-t border-gray-200 pt-3 flex justify-between items-center"
+                                    >
+                                        <span
+                                            class="text-xs font-bold text-gray-600"
+                                            >Eigenmetabolite Profile</span
+                                        >
+                                        <span
+                                            class="text-lg font-mono font-bold text-blue-600"
+                                            >-0.31 (ปรับลดลง)</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 6: PATHWAYS ================= -->
+                    <section
+                        id="panel-pathway"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="gr-box overflow-hidden">
+                            <div
+                                class="px-6 py-4 border-b border-workspace-border bg-white flex items-center justify-between"
+                            >
+                                <span class="text-scientific-card"
+                                    >การประเมินการตอบสนองระบบพาร์ทเวย์ (Pathway
+                                    Enrichment Profile)</span
+                                >
+                                <span class="text-xs text-gray-500"
+                                    >ทดสอบ Over-Representation Analysis
+                                    (hypergeometric test) ร่วมกับแผนผัง
+                                    KEGG</span
+                                >
+                            </div>
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="pl-6">
+                                            ชื่อแผนผังพาร์ทเวย์อ้างอิง (KEGG
+                                            Pathways Mapping)
+                                        </th>
+                                        <th class="text-center">
+                                            โมเลกุลที่วิเคราะห์ตรวจพบ
+                                        </th>
+                                        <th class="text-right">FDR q-value</th>
+                                        <th class="text-center">
+                                            ความเชื่อมโยงโหนดสำคัญ
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    class="divide-y divide-gray-100 bg-white"
+                                >
+                                    <tr
+                                        class="hover:bg-gray-50 transition-colors cursor-pointer"
+                                        onclick="
+                                            showToast(
+                                                'สารในแผนผัง',
+                                                'เชื่อมต่อเข้ากับพาร์ทเวย์วัฏจักรเครบส์สากลสำเร็จ',
+                                            )
+                                        "
+                                    >
+                                        <td
+                                            class="pl-6 font-semibold text-gray-900 py-4"
+                                        >
+                                            Citrate cycle (TCA cycle)
+                                        </td>
+                                        <td
+                                            class="text-center font-mono text-sm py-4"
+                                        >
+                                            6 / 20
+                                        </td>
+                                        <td
+                                            class="text-right font-mono text-sm text-red-600 font-bold py-4"
+                                        >
+                                            0.003
+                                        </td>
+                                        <td class="text-center py-4">
+                                            <span
+                                                class="px-2.5 py-1 bg-orange-50 text-brand-orange text-xs rounded border border-orange-200 font-bold"
+                                                >เชื่อมต่อโหนด Hub</span
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        class="hover:bg-gray-50 transition-colors cursor-pointer"
+                                        onclick="
+                                            showToast(
+                                                'สารในแผนผัง',
+                                                'เชื่อมต่อเข้ากับวิถีสลายน้ำตาลในเซลล์สำเร็จ',
+                                            )
+                                        "
+                                    >
+                                        <td
+                                            class="pl-6 font-semibold text-gray-900 py-4"
+                                        >
+                                            Glycolysis / Gluconeogenesis
+                                        </td>
+                                        <td
+                                            class="text-center font-mono text-sm py-4"
+                                        >
+                                            11 / 45
+                                        </td>
+                                        <td
+                                            class="text-right font-mono text-sm text-red-500 font-bold py-4"
+                                        >
+                                            0.012
+                                        </td>
+                                        <td class="text-center py-4">
+                                            <span
+                                                class="px-2.5 py-1 bg-orange-50 text-brand-orange text-xs rounded border border-orange-200 font-bold"
+                                                >เชื่อมต่อโหนด Hub</span
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        class="hover:bg-gray-50 transition-colors cursor-pointer"
+                                        onclick="
+                                            showToast(
+                                                'สารในแผนผัง',
+                                                'สแกนระดับการเหนี่ยวนำวิถีไพรูเวต',
+                                            )
+                                        "
+                                    >
+                                        <td
+                                            class="pl-6 font-semibold text-gray-900 py-4"
+                                        >
+                                            Pyruvate metabolism
+                                        </td>
+                                        <td
+                                            class="text-center font-mono text-sm py-4"
+                                        >
+                                            4 / 22
+                                        </td>
+                                        <td
+                                            class="text-right font-mono text-sm text-gray-700 font-bold py-4"
+                                        >
+                                            0.041
+                                        </td>
+                                        <td class="text-center py-4">
+                                            <span
+                                                class="px-2.5 py-1 bg-gray-100 text-gray-500 text-xs rounded border border-gray-200 font-bold"
+                                                >สอดคล้องตามมาตรฐาน</span
+                                            >
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 7: ML ================= -->
+                    <section
+                        id="panel-ml"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="grid grid-cols-2 gap-6">
+                            <!-- Left Column: Performance Metrics & Confusion Matrix -->
+                            <div class="space-y-6">
+                                <div class="gr-box p-6 bg-white">
+                                    <span
+                                        class="text-scientific-card block mb-4 border-b border-gray-100 pb-2"
+                                        >ความแม่นยำจำแนกประเภท (ROC Curve - AUC
+                                        0.89)</span
+                                    >
+                                    <div
+                                        class="h-48 border-l border-b border-gray-300 relative ml-6 mb-4 mt-6"
+                                    >
+                                        <svg
+                                            class="absolute inset-0 w-full h-full pointer-events-none"
+                                        >
+                                            <line
+                                                x1="0"
+                                                y1="100%"
+                                                x2="100%"
+                                                y2="0"
+                                                stroke="#D1D5DB"
+                                                stroke-width="2"
+                                                stroke-dasharray="4"
+                                            />
+                                        </svg>
+                                        <svg
+                                            class="absolute inset-0 w-full h-full pointer-events-none"
+                                            preserveAspectRatio="none"
+                                        >
+                                            <path
+                                                d="M 0 100 Q 5 20, 30 10 T 100 0"
+                                                fill="none"
+                                                stroke="#ff7c00"
+                                                stroke-width="4"
+                                                vector-effect="non-scaling-stroke"
+                                            />
+                                        </svg>
+                                        <span
+                                            class="absolute -bottom-5 right-0 text-[10px] text-gray-500 font-mono"
+                                            >1.0 FPR</span
+                                        >
+                                        <span
+                                            class="absolute -left-6 top-0 text-[10px] text-gray-500 font-mono"
+                                            >1.0 TPR</span
+                                        >
+                                    </div>
+                                </div>
+
+                                <!-- Hold-out Performance / Confusion Matrix (20% Split) -->
+                                <div class="gr-box p-6 bg-white">
+                                    <div
+                                        class="border-b border-gray-100 pb-2 mb-4"
+                                    >
+                                        <span class="text-scientific-card block"
+                                            >ประสิทธิภาพกลุ่มตัวอย่างทดสอบ
+                                            (Hold-out Performance)</span
+                                        >
+                                        <span
+                                            class="text-xs text-gray-500 font-semibold"
+                                            >ตาราง Confusion Matrix
+                                            จากชุดข้อมูลทดสอบภายนอก (20%
+                                            Split)</span
+                                        >
+                                    </div>
+
+                                    <div
+                                        class="grid grid-cols-2 gap-2 text-center font-mono"
+                                    >
+                                        <div
+                                            class="p-3 bg-slate-50 border border-workspace-border rounded-lg relative"
+                                        >
+                                            <span
+                                                class="text-[10px] text-content-secondary absolute top-1.5 left-2 uppercase font-sans tracking-wide"
+                                                >True Positive</span
+                                            >
+                                            <span
+                                                class="text-2xl font-bold text-slate-800 block mt-2"
+                                                >54</span
+                                            >
+                                        </div>
+                                        <div
+                                            class="p-3 bg-white border border-workspace-border rounded-lg relative"
+                                        >
+                                            <span
+                                                class="text-[10px] text-content-secondary absolute top-1.5 left-2 uppercase font-sans tracking-wide"
+                                                >False Positive</span
+                                            >
+                                            <span
+                                                class="text-2xl font-bold text-gray-500 block mt-2"
+                                                >7</span
+                                            >
+                                        </div>
+                                        <div
+                                            class="p-3 bg-white border border-workspace-border rounded-lg relative"
+                                        >
+                                            <span
+                                                class="text-[10px] text-content-secondary absolute top-1.5 left-2 uppercase font-sans tracking-wide"
+                                                >False Negative</span
+                                            >
+                                            <span
+                                                class="text-2xl font-bold text-gray-500 block mt-2"
+                                                >6</span
+                                            >
+                                        </div>
+                                        <div
+                                            class="p-3 bg-slate-50 border border-workspace-border rounded-lg relative"
+                                        >
+                                            <span
+                                                class="text-[10px] text-content-secondary absolute top-1.5 left-2 uppercase font-sans tracking-wide"
+                                                >True Negative</span
+                                            >
+                                            <span
+                                                class="text-2xl font-bold text-slate-800 block mt-2"
+                                                >51</span
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 grid grid-cols-3 gap-2 text-center text-xs border-t border-workspace-divider pt-3"
+                                    >
+                                        <div>
+                                            <span
+                                                class="text-content-secondary block"
+                                                >Sensitivity</span
+                                            >
+                                            <span
+                                                class="font-bold font-mono text-gray-900"
+                                                >90.0%</span
+                                            >
+                                        </div>
+                                        <div>
+                                            <span
+                                                class="text-content-secondary block"
+                                                >Specificity</span
+                                            >
+                                            <span
+                                                class="font-bold font-mono text-gray-900"
+                                                >87.9%</span
+                                            >
+                                        </div>
+                                        <div>
+                                            <span
+                                                class="text-content-secondary block"
+                                                >Accuracy</span
+                                            >
+                                            <span
+                                                class="font-bold font-mono text-gray-900"
+                                                >89.0%</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: SHAP Importance -->
+                            <div
+                                class="gr-box p-6 bg-white flex flex-col justify-between"
+                            >
+                                <div>
+                                    <span
+                                        class="text-scientific-card block mb-4 border-b border-gray-100 pb-2"
+                                        >ผลอธิบายการตัดสินใจปัญญาประดิษฐ์
+                                        (TreeSHAP global summary)</span
+                                    >
+                                    <div class="space-y-4 mt-6" id="shap-chart">
+                                        <!-- Rendered dynamically by JS -->
+                                    </div>
+                                </div>
+                                <div
+                                    class="mt-6 p-4 bg-orange-50 border border-orange-100 rounded text-xs text-orange-800 leading-relaxed"
+                                >
+                                    <i class="ph ph-info inline mr-1"></i>
+                                    ค่าความสำคัญ SHAP
+                                    สะท้อนถึงผลกระทบเฉลี่ยของโมเลกุลแต่ละตัวในการทำนายผลลัพธ์ของกลุ่มเป้าหมาย
+                                    (Disease cohort)
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 8: SIGNATURE ================= -->
+                    <section
+                        id="panel-signature"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div
+                            class="gr-box overflow-hidden shadow-md border-gray-300"
+                        >
+                            <div
+                                class="px-6 py-5 border-b border-gray-200 bg-gray-50 flex items-center justify-between"
+                            >
+                                <span class="text-lg font-bold text-gray-900"
+                                    >แผนผังและตารางคะแนนหลักฐานหลอมรวมชีวภาพ
+                                    (Integrated Signature Map)</span
+                                >
+                                <div class="flex gap-2">
+                                    <button
+                                        class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                                        onclick="filterSignature('all')"
+                                    >
+                                        แสดงทั้งหมด
+                                    </button>
+                                    <button
+                                        class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors text-orange-600"
+                                        onclick="filterSignature('High')"
+                                    >
+                                        ความเชื่อมั่นสูง
+                                    </button>
+                                </div>
+                            </div>
+                            <table class="w-full text-left">
+                                <thead class="bg-white">
+                                    <tr>
+                                        <th class="pl-6">
+                                            รหัสและชื่อโมเลกุล (Identity
+                                            Mapping)
+                                        </th>
+                                        <th
+                                            class="text-center font-bold text-gray-900"
+                                        >
+                                            ค่าคะแนนรวม (Convergence Score 0-1)
+                                        </th>
+                                        <th class="text-center">
+                                            ระดับความเสถียร (Tier Level)
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    class="divide-y divide-gray-100 bg-white"
+                                    id="signature-tbody"
+                                >
+                                    <!-- Rendered dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- ================= TAB 9: EXPORT ================= -->
+                    <section
+                        id="panel-export"
+                        class="tab-panel hidden space-y-6 max-w-5xl mx-auto"
+                    >
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="gr-box p-6 bg-white space-y-3">
+                                <span
+                                    class="text-scientific-card block mb-4 border-b border-gray-100 pb-2"
+                                    >ชุดข้อมูลและสรุปสำหรับนำเสนอเผยแพร่</span
+                                >
+                                <button
+                                    onclick="
+                                        showToast(
+                                            'ระบบนำออก',
+                                            'กำลังรวบรวมข้อมูลสำหรับรายงานวิจัยในรูปแบบ PDF...',
+                                            'success',
+                                        )
+                                    "
+                                    class="w-full p-4 bg-gray-50 border border-gray-200 hover:border-brand-orange hover:bg-brand-orangeLight transition-all rounded-lg flex justify-between items-center text-sm font-bold text-gray-800"
+                                >
+                                    <span
+                                        >📄 รายงานสรุปพยาธิสภาพการตรวจ (PDF
+                                        Study Report)</span
+                                    >
+                                    <i class="ph ph-download-simple"></i>
+                                </button>
+                                <button
+                                    onclick="
+                                        showToast(
+                                            'ระบบนำออก',
+                                            'ดาวน์โหลดการตั้งค่า JSON เพื่อใช้สร้างซ้ำสำเร็จ',
+                                            'success',
+                                        )
+                                    "
+                                    class="w-full p-4 bg-gray-50 border border-gray-200 hover:border-brand-orange hover:bg-brand-orangeLight transition-all rounded-lg flex justify-between items-center text-sm font-bold text-gray-800"
+                                >
+                                    <span
+                                        >📦 แพ็กเกจคำสั่งสืบทอดระบบสถิติซ้ำ
+                                        (JSON Repro Package)</span
+                                    >
+                                    <i class="ph ph-download-simple"></i>
+                                </button>
+                                <button
+                                    onclick="
+                                        showToast(
+                                            'ระบบนำออก',
+                                            'ดึงข้อมูลพิกัดสปาร์สเมตริกซ์ CSV สำเร็จ',
+                                            'success',
+                                        )
+                                    "
+                                    class="w-full p-4 bg-gray-50 border border-gray-200 hover:border-brand-orange hover:bg-brand-orangeLight transition-all rounded-lg flex justify-between items-center text-sm font-bold text-gray-800"
+                                >
+                                    <span
+                                        >📊 ตารางข้อมูลตัวแปรหลักดิบสถิติ (CSV
+                                        Table Matrix)</span
+                                    >
+                                    <i class="ph ph-download-simple"></i>
+                                </button>
+                            </div>
+                            <div class="gr-box p-6 bg-white flex flex-col">
+                                <div
+                                    class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2"
+                                >
+                                    <span class="text-scientific-card"
+                                        >กล่องเขียนระเบียบวิธีวิจัยอัตโนมัติ
+                                        (Methods Auto-writer)</span
+                                    >
+                                    <button
+                                        onclick="
+                                            copyToClipboard('methods-text')
+                                        "
+                                        class="text-xs font-bold bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md border border-gray-200 transition-colors flex items-center gap-1"
+                                    >
+                                        <i class="ph ph-copy"></i> คัดลอก
+                                    </button>
+                                </div>
+                                <textarea
+                                    id="methods-text"
+                                    class="flex-1 w-full bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm font-mono text-gray-700 resize-none outline-none focus:border-brand-orange leading-relaxed"
+                                    readonly
+                                >
+Metabolomics data was normalized using Probabilistic Quotient Normalization (PQN) followed by Pareto scaling. Multi-evidence discovery was executed on Python-based igraph engine (correlation threshold |r| >= 0.40). For ML prediction, an XGBoost Classifier was optimized via Bayesian Search (Optuna) inside a 5-fold Nested Cross-Validation scheme. Evidence Convergence score integration was built natively using the HMDB / KEGG identifiers map references to identify active biological networks.</textarea>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <!-- Right Sidebar: Evidence Inspector (Visible ONLY when selected, hidden by default) -->
+            <aside
+                id="evidence-inspector"
+                class="w-0 opacity-0 pointer-events-none overflow-hidden bg-white border-l-0 border-workspace-border flex flex-col shrink-0 z-50 transition-all duration-300 ease-in-out shadow-[0_0_20px_rgba(0,0,0,0.05)] absolute right-0 top-14 bottom-0"
+            >
+                <div
+                    class="h-14 border-b border-workspace-border px-5 flex items-center justify-between bg-workspace-sidebar shrink-0"
+                >
+                    <span
+                        class="text-sm font-bold text-content-main flex items-center gap-2"
+                        ><i
+                            class="ph ph-magnifying-glass-plus text-brand-orange text-lg"
+                        ></i>
+                        เครื่องมือตรวจวิเคราะห์หลักฐานชีวภาพ (Evidence
+                        Inspector)</span
+                    >
+                    <button
+                        onclick="closeInspector()"
+                        class="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 transition-colors"
+                    >
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+
+                <div
+                    id="inspector-content"
+                    class="flex-1 overflow-y-auto flex flex-col bg-white"
+                >
+                    <div
+                        class="p-5 border-b border-workspace-divider bg-gradient-to-b from-gray-50 to-white"
+                    >
+                        <div class="flex items-start justify-between mb-3">
+                            <div>
+                                <h2
+                                    id="ins-name"
+                                    class="text-xl font-bold text-gray-900 leading-tight"
+                                >
+                                    Name
+                                </h2>
+                                <p
+                                    id="ins-id"
+                                    class="text-sm font-mono text-gray-500 mt-1 font-medium"
+                                >
+                                    ID
+                                </p>
+                            </div>
+                            <span
+                                id="ins-tier"
+                                class="px-2.5 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-md uppercase tracking-widest shadow-sm"
+                                >Tier</span
+                            >
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button
+                                onclick="copyToClipboard('ins-id')"
+                                class="flex-1 py-1.5 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm active:scale-95"
+                            >
+                                คัดลอก ID
+                            </button>
+                            <a
+                                href="#"
+                                target="_blank"
+                                id="ins-link"
+                                class="flex-1 py-1.5 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex items-center justify-center gap-1 active:scale-95"
+                                >เปิดค้นหาฐาน HMDB
+                                <i class="ph ph-arrow-square-out"></i
+                            ></a>
+                        </div>
+                    </div>
+
+                    <div class="p-5 space-y-6 pb-12">
+                        <div
+                            class="bg-brand-orangeLight/30 border border-brand-orange/20 p-4 rounded-lg"
+                        >
+                            <span
+                                class="text-[10px] font-bold text-brand-orange uppercase tracking-widest block mb-2"
+                                >คะแนนประจักษ์พยานหลอมรวม (Score)</span
+                            >
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="text-4xl font-mono font-bold text-brand-orange"
+                                    id="ins-score"
+                                >
+                                    0.00
+                                </div>
+                                <div
+                                    class="flex-1 h-2.5 bg-white border border-brand-orange/20 rounded-full overflow-hidden"
+                                >
+                                    <div
+                                        class="h-full bg-brand-orange transition-all duration-500"
+                                        id="ins-bar"
+                                        style="width: 0%"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span
+                                class="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-3 border-b border-gray-100 pb-2"
+                                >ความแตกต่างปริมาณ (Statistics)</span
+                            >
+                            <div class="grid grid-cols-2 gap-y-3 text-sm">
+                                <span class="text-gray-500 font-medium"
+                                    >Log2 fold Change</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold"
+                                    id="ins-fc"
+                                    >-</span
+                                >
+                                <span class="text-gray-500 font-medium"
+                                    >Adj. P-Value (FDR)</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold text-gray-900"
+                                    id="ins-p"
+                                    >-</span
+                                >
+                                <span class="text-gray-500 font-medium"
+                                    >ขนาดผลกระทบ (Cohen's d)</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold text-gray-900"
+                                    id="ins-effect"
+                                    >-</span
+                                >
+                            </div>
+                        </div>
+
+                        <div>
+                            <span
+                                class="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-3 border-b border-gray-100 pb-2"
+                                >อิทธิพลการทํานายหลัก (SHAP Model)</span
+                            >
+                            <div class="grid grid-cols-2 gap-y-3 text-sm">
+                                <span class="text-gray-500 font-medium"
+                                    >ระดับนัยสำคัญ SHAP Value</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold text-gray-900"
+                                    id="ins-shap"
+                                    >-</span
+                                >
+                            </div>
+                        </div>
+
+                        <div>
+                            <span
+                                class="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-3 border-b border-gray-100 pb-2"
+                                >บทบาทเครือข่ายและระบบโมดูล</span
+                            >
+                            <div class="grid grid-cols-2 gap-y-3 text-sm">
+                                <span class="text-gray-500 font-medium"
+                                    >บทบาทการกระจายความร้อน</span
+                                >
+                                <span
+                                    class="text-right font-bold text-brand-orange"
+                                    id="ins-role"
+                                    >-</span
+                                >
+                                <span class="text-gray-500 font-medium"
+                                    >จำนวนข้อต่อเส้นสัมพันธ์</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold text-gray-900"
+                                    id="ins-degree"
+                                    >-</span
+                                >
+                                <span class="text-gray-500 font-medium"
+                                    >ชื่อคลัสเตอร์สถิติหลัก</span
+                                >
+                                <span
+                                    class="text-right font-mono font-bold bg-gray-100 px-1.5 py-0.5 rounded text-gray-800 ml-auto w-max"
+                                    id="ins-module"
+                                    >-</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <script>
+            // --- 1. DATA ---
+            // Built-in fallback dataset (used when the Backend API is unreachable,
+            // e.g. index.html opened directly). When the backend is up, this is
+            // replaced at load by real pipeline output from /api/metabolites.
+            let metData = {
+                HMDB0000190: {
+                    id: "HMDB0000190",
+                    kegg: "C00186",
+                    name: "L-Lactic acid",
+                    dir: "Up",
+                    fc: 1.83,
+                    pval: 0.014,
+                    effect: 0.61,
+                    shap: 0.34,
+                    tier: "High (Tier 1)",
+                    score: 0.87,
+                    role: "Stable Hub",
+                    degree: 12,
+                    module: "M1",
+                },
+                HMDB0000148: {
+                    id: "HMDB0000148",
+                    kegg: "C00158",
+                    name: "Citric acid",
+                    dir: "Up",
+                    fc: 1.35,
+                    pval: 0.021,
+                    effect: 0.54,
+                    shap: 0.28,
+                    tier: "High (Tier 1)",
+                    score: 0.78,
+                    role: "Stable Hub",
+                    degree: 9,
+                    module: "M1",
+                },
+                HMDB0000122: {
+                    id: "HMDB0000122",
+                    kegg: "C00031",
+                    name: "D-Glucose",
+                    dir: "Down",
+                    fc: -1.12,
+                    pval: 0.033,
+                    effect: -0.35,
+                    shap: 0.21,
+                    tier: "Low (Tier 3)",
+                    score: 0.21,
+                    role: "Peripheral",
+                    degree: 3,
+                    module: "M2",
+                },
+                HMDB0000223: {
+                    id: "HMDB0000223",
+                    kegg: "C00149",
+                    name: "Malic acid",
+                    dir: "Up",
+                    fc: 0.98,
+                    pval: 0.042,
+                    effect: 0.48,
+                    shap: 0.18,
+                    tier: "High (Tier 1)",
+                    score: 0.72,
+                    role: "Hub",
+                    degree: 8,
+                    module: "M1",
+                },
+                HMDB0000042: {
+                    id: "HMDB0000042",
+                    kegg: "C00041",
+                    name: "L-Alanine",
+                    dir: "Up",
+                    fc: 0.75,
+                    pval: 0.048,
+                    effect: 0.39,
+                    shap: 0.12,
+                    tier: "Moderate (Tier 2)",
+                    score: 0.52,
+                    role: "Hub",
+                    degree: 7,
+                    module: "M1",
+                },
+                HMDB0000156: {
+                    id: "HMDB0000156",
+                    kegg: "C00042",
+                    name: "Succinic acid",
+                    dir: "Down",
+                    fc: -0.85,
+                    pval: 0.039,
+                    effect: -0.41,
+                    shap: 0.15,
+                    tier: "Moderate (Tier 2)",
+                    score: 0.45,
+                    role: "Peripheral",
+                    degree: 4,
+                    module: "M2",
+                },
+                HMDB0000243: {
+                    id: "HMDB0000243",
+                    kegg: "C00064",
+                    name: "L-Glutamine",
+                    dir: "Down",
+                    fc: -1.3,
+                    pval: 0.018,
+                    effect: -0.58,
+                    shap: 0.26,
+                    tier: "High (Tier 1)",
+                    score: 0.81,
+                    role: "Stable Hub",
+                    degree: 10,
+                    module: "M2",
+                },
+                HMDB0000112: {
+                    id: "HMDB0000112",
+                    kegg: "C00022",
+                    name: "Pyruvic acid",
+                    dir: "Up",
+                    fc: 1.15,
+                    pval: 0.027,
+                    effect: 0.5,
+                    shap: 0.19,
+                    tier: "Moderate (Tier 2)",
+                    score: 0.65,
+                    role: "Hub",
+                    degree: 6,
+                    module: "M1",
+                },
+                HMDB0000259: {
+                    id: "HMDB0000259",
+                    kegg: "C00025",
+                    name: "L-Glutamic acid",
+                    dir: "Down",
+                    fc: -0.92,
+                    pval: 0.035,
+                    effect: -0.45,
+                    shap: 0.17,
+                    tier: "Moderate (Tier 2)",
+                    score: 0.58,
+                    role: "Peripheral",
+                    degree: 5,
+                    module: "M2",
+                },
+            };
+
+            let metList = Object.values(metData);
+            let topBiomarkers = [];
+            let topShap = [];
+            let topScore = [];
+            function recomputeDerived() {
+                metList = Object.values(metData);
+                topBiomarkers = [...metList].sort(
+                    (a, b) => Math.abs(b.effect) - Math.abs(a.effect),
+                );
+                topShap = [...metList].sort((a, b) => b.shap - a.shap);
+                topScore = [...metList].sort((a, b) => b.score - a.score);
+            }
+            recomputeDerived();
+
+            // Pull real pipeline output from the backend; fall back to the built-in
+            // mock silently if the API is not running (keeps the file standalone).
+            async function bootstrapFromBackend() {
+                try {
+                    const res = await fetch("/api/metabolites", {
+                        cache: "no-store",
+                    });
+                    if (!res.ok) throw new Error("backend " + res.status);
+                    const data = await res.json();
+                    if (data && Object.keys(data).length) {
+                        metData = data;
+                        recomputeDerived();
+                        addLog(
+                            "เชื่อมต่อ Backend API สำเร็จ — โหลดผลวิเคราะห์จริง " +
+                                Object.keys(data).length +
+                                " เมตาโบไลต์",
+                            "success",
+                        );
+                        return true;
+                    }
+                } catch (e) {
+                    addLog(
+                        "ไม่พบ Backend API — ใช้ข้อมูลสำรองในเครื่อง (offline mock)",
+                        "info",
+                    );
+                }
+                return false;
+            }
+
+            // --- 2. DYNAMIC RENDERING ---
+            function renderTables() {
+                // A. ID Resolution Table
+                const resHtml = metList
+                    .map(
+                        (m) => `
+                <tr class="cursor-pointer hover:bg-orange-50 transition-colors" onclick="selectMetabolite('${m.id}')">
+                    <td class="pl-6 font-semibold text-gray-900 py-3">${m.name}</td>
+                    <td class="font-mono text-gray-600">${m.id}</td>
+                    <td class="font-mono text-gray-600">${m.kegg}</td>
+                    <td class="text-center"><span class="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] rounded font-bold border border-green-200">แมปแล้ว</span></td>
+                    <td class="text-right pr-6 font-mono text-xs text-gray-500">Local Reference SDF</td>
+                </tr>`,
+                    )
+                    .join("");
+                document.getElementById("resolution-tbody").innerHTML = resHtml;
+
+                // B. Differential Analysis Table
+                const diffHtml = metList
+                    .map(
+                        (m) => `
+                <tr class="cursor-pointer hover:bg-orange-50 transition-colors" onclick="selectMetabolite('${m.id}')">
+                    <td class="pl-6 font-semibold text-gray-900 py-3">${m.name}</td>
+                    <td class="text-right font-mono text-sm font-bold ${m.dir === "Up" ? "text-red-600" : "text-blue-600"}">${m.fc.toFixed(2)}</td>
+                    <td class="text-right font-mono text-sm text-gray-700">${m.effect.toFixed(2)}</td>
+                    <td class="text-right font-mono text-sm font-bold text-gray-900 pr-6">${m.pval.toFixed(3)}</td>
+                </tr>`,
+                    )
+                    .join("");
+                document.getElementById("diff-tbody").innerHTML = diffHtml;
+
+                // C. Volcano SVG Plot
+                let svgHtml = "";
+                metList.forEach((m) => {
+                    let cx = ((m.fc + 2) / 4) * 100;
+                    let cy = Math.max(10, Math.min(80, (m.pval / 0.05) * 80));
+                    let color = m.dir === "Up" ? "#EF4444" : "#3B82F6";
+                    let r = m.score > 0.7 ? 8 : m.score > 0.4 ? 6.5 : 5;
+                    svgHtml += `<circle cx="${cx}%" cy="${cy}%" r="${r}" fill="${color}" stroke="#FFF" stroke-width="2" class="interactive-node drop-shadow-sm" onclick="selectMetabolite('${m.id}')" id="node-${m.id}" />`;
+                });
+                // Background Noise
+                for (let i = 0; i < 8; i++) {
+                    let rx = 30 + Math.random() * 40;
+                    let ry = 75 + Math.random() * 20;
+                    svgHtml += `<circle cx="${rx}%" cy="${ry}%" r="3.5" fill="#E5E7EB" class="interactive-node" onclick="showToast('โหนดสถิติปกติ', 'ค่าความต่างสถิติอยู่ใต้เกณฑ์นัยสำคัญ')" />`;
+                }
+                document.getElementById("volcano-svg").innerHTML = svgHtml;
+
+                // D. SHAP Global Feature Importance
+                let shapHtml = topShap
+                    .map((m, i) => {
+                        let w = (m.shap / topShap[0].shap) * 100;
+                        let bg = i < 3 ? "bg-gray-800" : "bg-gray-400";
+                        return `<div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="selectMetabolite('${m.id}')">
+                    <div class="flex justify-between text-xs font-bold text-gray-700 mb-1"><span>${m.name}</span><span class="font-mono">${m.shap.toFixed(2)}</span></div>
+                    <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden"><div class="${bg} h-full rounded-full transition-all" style="width: ${w}%"></div></div>
+                </div>`;
+                    })
+                    .join("");
+                document.getElementById("shap-chart").innerHTML = shapHtml;
+
+                // E. Integrated Score Map Table
+                renderSignatureTable(topScore);
+
+                // F. Overview - Top 3 Biomarkers Progress Cards
+                let ovHtml = topBiomarkers
+                    .slice(0, 3)
+                    .map((m) => {
+                        let w =
+                            (Math.abs(m.effect) /
+                                Math.abs(topBiomarkers[0].effect)) *
+                            100;
+                        return `<div class="cursor-pointer group" onclick="selectMetabolite('${m.id}')">
+                    <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-content-main group-hover:text-brand-orange transition-colors">${m.name}</span><span class="font-mono text-content-secondary text-xs font-semibold">d = ${m.effect.toFixed(2)}</span></div>
+                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"><div class="bg-gray-400 group-hover:bg-brand-orange h-full rounded-full transition-all" style="width: ${w}%"></div></div>
+                </div>`;
+                    })
+                    .join("");
+                document.getElementById("overview-biomarkers").innerHTML =
+                    ovHtml;
+            }
+
+            const moduleMeta = {
+                M1: {
+                    label: "Module M1 (Energy)",
+                    pillBg: "bg-brand-orange",
+                    rowBg: "bg-orange-50",
+                },
+                M2: {
+                    label: "Module M2 (Nitrogen Shunt)",
+                    pillBg: "bg-gray-600",
+                    rowBg: "bg-gray-100",
+                },
+            };
+
+            function renderSignatureTable(data) {
+                const groups = {};
+                data.forEach((m) => {
+                    (groups[m.module] ||= []).push(m);
+                });
+
+                const moduleOrder = Object.keys(groups).sort((a, b) => {
+                    const avg = (arr) =>
+                        arr.reduce((s, m) => s + m.score, 0) / arr.length;
+                    return avg(groups[b]) - avg(groups[a]);
+                });
+
+                const sigHtml = moduleOrder
+                    .map((modKey) => {
+                        const meta = moduleMeta[modKey] || {
+                            label: `Module ${modKey}`,
+                            pillBg: "bg-gray-600",
+                            rowBg: "bg-gray-50",
+                        };
+                        const members = [...groups[modKey]].sort(
+                            (a, b) => b.score - a.score,
+                        );
+                        const rows = members
+                            .map((m) => {
+                                let badge = m.tier.includes("High")
+                                    ? "bg-gray-900 text-white"
+                                    : m.tier.includes("Moderate")
+                                      ? "bg-gray-500 text-white"
+                                      : "bg-gray-100 border border-gray-300 text-gray-600";
+                                let color = m.tier.includes("High")
+                                    ? "text-brand-orange"
+                                    : "text-gray-700";
+                                return `<tr class="cursor-pointer hover:bg-orange-50 transition-colors" onclick="selectMetabolite('${m.id}')">
+                        <td class="pl-6 py-4"><span class="font-bold text-gray-900 block text-base">${m.name}</span><span class="text-xs text-gray-500 font-mono mt-0.5 block">${m.id}</span></td>
+                        <td class="text-center font-mono text-xl font-bold ${color} py-4">${m.score.toFixed(2)}</td>
+                        <td class="text-center py-4"><span class="px-3 py-1 text-xs font-bold rounded-md ${badge}">${m.tier}</span></td>
+                    </tr>`;
+                            })
+                            .join("");
+                        return `<tr class="${meta.rowBg}">
+                    <td colspan="3" class="pl-6 py-2.5">
+                        <span class="px-2.5 py-1 ${meta.pillBg} text-white text-[11px] font-bold rounded shadow-sm tracking-wider">${meta.label}</span>
+                        <span class="ml-2 text-xs text-gray-500 font-mono">${members.length} โมเลกุล</span>
+                    </td>
+                </tr>${rows}`;
+                    })
+                    .join("");
+                document.getElementById("signature-tbody").innerHTML = sigHtml;
+            }
+
+            // --- 3. CYTOSCAPE.JS NETWORK CONFIGURATION ---
+            let cy;
+            function initNetwork() {
+                const elements = [];
+                // Nodes mapping
+                metList.forEach((m) => {
+                    elements.push({
+                        data: {
+                            id: m.id,
+                            label: m.name.substring(0, 3).toUpperCase(),
+                            fullName: m.name,
+                            score: m.score,
+                            dir: m.dir,
+                            module: m.module,
+                        },
+                    });
+                });
+                // Edges (M1 relationships)
+                [
+                    "HMDB0000148",
+                    "HMDB0000223",
+                    "HMDB0000042",
+                    "HMDB0000112",
+                ].forEach((target) => {
+                    elements.push({
+                        data: {
+                            source: "HMDB0000190",
+                            target: target,
+                            weight: 0.75,
+                        },
+                    });
+                });
+                // Edges (M2 relationships)
+                ["HMDB0000122", "HMDB0000156", "HMDB0000259"].forEach(
+                    (target) => {
+                        elements.push({
+                            data: {
+                                source: "HMDB0000243",
+                                target: target,
+                                weight: 0.68,
+                            },
+                        });
+                    },
+                );
+                // Cross-module Bridge Edge
+                elements.push({
+                    data: {
+                        source: "HMDB0000148",
+                        target: "HMDB0000243",
+                        weight: 0.42,
+                    },
+                });
+
+                cy = cytoscape({
+                    container: document.getElementById("cy"),
+                    elements: elements,
+                    style: [
+                        {
+                            selector: "node",
+                            style: {
+                                label: "data(label)",
+                                width: "mapData(score, 0, 1, 35, 70)",
+                                height: "mapData(score, 0, 1, 35, 70)",
+                                "background-color": "#FFFFFF",
+                                "border-width": 3,
+                                "border-color": function (ele) {
+                                    return ele.data("dir") === "Up"
+                                        ? "#ff7c00"
+                                        : "#3B82F6";
+                                },
+                                color: "#111827",
+                                "font-family": "monospace",
+                                "font-size": "11px",
+                                "font-weight": "bold",
+                                "text-valign": "center",
+                                "text-halign": "center",
+                            },
+                        },
+                        {
+                            selector: "edge",
+                            style: {
+                                width: "mapData(weight, 0, 1, 1.5, 4)",
+                                "line-color": "#CBD5E1",
+                                "curve-style": "bezier",
+                            },
+                        },
+                        {
+                            selector: ".highlighted",
+                            style: {
+                                "border-width": 6,
+                                "border-color": "#111827",
+                            },
+                        },
+                        {
+                            selector: ".faded",
+                            style: { opacity: 0.2 },
+                        },
+                    ],
+                    layout: {
+                        name: "cose",
+                        padding: 50,
+                        idealEdgeLength: 100,
+                        nodeOverlap: 20,
+                    },
+                    userZoomingEnabled: true,
+                    userPanningEnabled: true,
+                });
+
+                // Node interaction linked directly with Evidence Inspector
+                cy.on("tap", "node", function (evt) {
+                    var node = evt.target;
+                    selectMetabolite(node.id());
+                });
+            }
+
+            function reLayoutGraph() {
+                if (cy) {
+                    cy.layout({
+                        name: "cose",
+                        animate: true,
+                        duration: 300,
+                    }).run();
+                    showToast(
+                        "เครือข่าย",
+                        "คำนวณการจัดระเบียบแผนผังใหม่สำเร็จ",
+                        "info",
+                    );
+                }
+            }
+
+            function updateNetworkThreshold(val) {
+                document.getElementById("net-thresh").innerText =
+                    val.toFixed(2);
+                if (cy) {
+                    // Mock edge filtering based on weight
+                    cy.edges().forEach((edge) => {
+                        if (edge.data("weight") < val) {
+                            edge.style("display", "none");
+                        } else {
+                            edge.style("display", "element");
+                        }
+                    });
+                }
+            }
+
+            function toggleStableHubsFilter(checked) {
+                if (cy) {
+                    if (checked) {
+                        cy.nodes().forEach((node) => {
+                            const m = metData[node.id()];
+                            if (m && !m.role.includes("Hub")) {
+                                node.style("display", "none");
+                            }
+                        });
+                    } else {
+                        cy.nodes().style("display", "element");
+                    }
+                }
+            }
+
+            // --- 4. WORKSPACE LOGIC ---
+            function showToast(title, message, type = "info") {
+                const container = document.getElementById("toast-container");
+                const toast = document.createElement("div");
+
+                let iconClass, bgClass, borderClass, textClass;
+                if (type === "success") {
+                    iconClass = "ph-check-circle text-green-500";
+                    bgClass = "bg-white";
+                    borderClass = "border-green-200";
+                    textClass = "text-green-800";
+                } else if (type === "warn") {
+                    iconClass = "ph-warning text-brand-orange";
+                    bgClass = "bg-white";
+                    borderClass = "border-brand-orange";
+                    textClass = "text-orange-900";
+                } else {
+                    iconClass = "ph-info text-blue-500";
+                    bgClass = "bg-white";
+                    borderClass = "border-blue-200";
+                    textClass = "text-blue-900";
+                }
+
+                toast.className = `flex items-start gap-3 p-4 rounded-lg border ${borderClass} ${bgClass} shadow-floating toast-enter pointer-events-auto min-w-[300px] z-50`;
+                toast.innerHTML = `
+                <i class="ph-fill ${iconClass} text-xl mt-0.5"></i>
+                <div class="flex-1">
+                    <h4 class="text-sm font-bold ${textClass}">${title}</h4>
+                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">${message}</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-700" onclick="this.parentElement.remove()"><i class="ph ph-x"></i></button>
+            `;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.classList.replace("toast-enter", "toast-leave");
+                        setTimeout(() => toast.remove(), 300);
+                    }
+                }, 3500);
+            }
+
+            function handleSearch(event) {
+                const query = event.target.value.toLowerCase();
+                if (event.key === "Enter") {
+                    const found = metList.find(
+                        (m) =>
+                            m.name.toLowerCase().includes(query) ||
+                            m.id.toLowerCase().includes(query),
+                    );
+                    if (found) {
+                        selectMetabolite(found.id);
+                        addLog(`ค้นพบโมเลกุลระบุเป้าหมาย: ${found.name}`);
+                    } else {
+                        showToast(
+                            "ค้นหาไม่พบ",
+                            `ไม่พบข้อมูลสารระบุพยานชีวภาพสำหรับ "${query}"`,
+                            "warn",
+                        );
+                    }
+                }
+            }
+
+            // Global keydown listeners for standard shortcuts
+            document.addEventListener("keydown", function (e) {
+                if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+                    e.preventDefault();
+                    document.getElementById("global-search").focus();
+                }
+            });
+
+            function copyToClipboard(elementId) {
+                let text = "";
+                const el = document.getElementById(elementId);
+                if (el.tagName === "TEXTAREA") {
+                    text = el.value;
+                    el.select();
+                } else {
+                    text = el.innerText;
+                }
+                navigator.clipboard.writeText(text).then(() => {
+                    addLog(`คัดลอกข้อความสำเร็จ`, "success");
+                    showToast(
+                        "คัดลอกลงคลิปบอร์ด",
+                        "บันทึกข้อความเก็บเข้าระบบหน่วยความจำสำเร็จ",
+                        "success",
+                    );
+                });
+            }
+
+            function switchTab(tabId) {
+                const buttons = document.querySelectorAll(".tab-btn");
+                buttons.forEach((btn) => {
+                    const targetTab = btn.getAttribute("data-tab");
+                    btn.className =
+                        "tab-btn w-full text-left px-3 py-1.5 rounded flex items-center gap-2.5 text-sm transition-colors relative";
+                    if (targetTab === tabId) {
+                        btn.classList.add(
+                            "bg-workspace-selected",
+                            "text-brand-orange",
+                            "font-semibold",
+                        );
+                        if (tabId === "signature")
+                            btn.innerHTML +=
+                                '<span class="absolute right-3 w-1.5 h-1.5 rounded-full bg-brand-orange"></span>';
+                        document.getElementById(
+                            "active-panel-title",
+                        ).innerText = btn.innerText.trim();
+                    } else {
+                        btn.classList.add(
+                            "text-content-secondary",
+                            "hover:bg-workspace-hover",
+                        );
+                        if (targetTab === "signature")
+                            btn.innerHTML +=
+                                '<span class="absolute right-3 w-1.5 h-1.5 rounded-full bg-brand-orange"></span>';
+                    }
+                });
+
+                document
+                    .querySelectorAll(".tab-panel")
+                    .forEach((p) => p.classList.add("hidden"));
+                const targetPanel = document.getElementById(`panel-${tabId}`);
+                if (targetPanel) {
+                    targetPanel.classList.remove("hidden");
+                    // Trigger cytoscape resize if entering network tab
+                    if (tabId === "network" && cy) {
+                        setTimeout(() => cy.resize(), 50);
+                    }
+                }
+                addLog(
+                    `เปลี่ยนหน้าต่างการทำงานไปยัง: [${tabId.toUpperCase()}]`,
+                );
+            }
+
+            function filterSignature(tier) {
+                if (tier === "all") {
+                    renderSignatureTable(topScore);
+                } else {
+                    const filtered = topScore.filter((m) =>
+                        m.tier.includes(tier),
+                    );
+                    renderSignatureTable(filtered);
+                }
+            }
+
+            function addLog(text, type = "info") {
+                const term = document.getElementById("log-terminal");
+                if (term) {
+                    const div = document.createElement("div");
+                    div.className =
+                        type === "warn"
+                            ? "text-brand-orange"
+                            : type === "success"
+                              ? "text-green-400"
+                              : "text-gray-400";
+                    const timestamp = new Date()
+                        .toISOString()
+                        .substring(11, 19);
+                    div.innerText = `[${timestamp}] ${text}`;
+                    term.appendChild(div);
+                    term.scrollTop = term.scrollHeight;
+                }
+            }
+
+            function selectMetabolite(id) {
+                const inspector = document.getElementById("evidence-inspector");
+
+                // Slide in Inspector panel
+                inspector.classList.remove(
+                    "w-0",
+                    "opacity-0",
+                    "border-l-0",
+                    "pointer-events-none",
+                );
+                inspector.classList.add(
+                    "w-[320px]",
+                    "opacity-100",
+                    "border-l",
+                    "pointer-events-auto",
+                );
+
+                const m = metData[id];
+                if (m) {
+                    const fcColor =
+                        m.dir === "Up" ? "text-red-600" : "text-blue-600";
+                    const tierClass = m.tier.includes("High")
+                        ? "bg-gray-900"
+                        : m.tier.includes("Mod")
+                          ? "bg-gray-500"
+                          : "bg-gray-300";
+
+                    document.getElementById("ins-name").innerText = m.name;
+                    document.getElementById("ins-id").innerText = m.id;
+                    document.getElementById("ins-tier").innerText = m.tier;
+                    document.getElementById("ins-tier").className =
+                        `px-2.5 py-1 text-white text-[10px] font-bold rounded-md uppercase tracking-widest shadow-sm ${tierClass}`;
+                    document.getElementById("ins-score").innerText =
+                        m.score.toFixed(2);
+                    document.getElementById("ins-bar").style.width =
+                        `${m.score * 100}%`;
+                    document.getElementById("ins-fc").innerText =
+                        `${m.fc.toFixed(2)} (${m.dir})`;
+                    document.getElementById("ins-fc").className =
+                        `text-right font-mono font-bold ${fcColor}`;
+                    document.getElementById("ins-p").innerText =
+                        m.pval.toFixed(3);
+                    document.getElementById("ins-effect").innerText =
+                        m.effect.toFixed(2);
+                    document.getElementById("ins-shap").innerText =
+                        m.shap.toFixed(2);
+                    document.getElementById("ins-role").innerText = m.role;
+                    document.getElementById("ins-degree").innerText = m.degree;
+                    document.getElementById("ins-module").innerText =
+                        `Module ${m.module}`;
+
+                    document.getElementById("ins-link").href =
+                        `https://hmdb.ca/metabolites/${m.id}`;
+                    document
+                        .getElementById("ins-link")
+                        .classList.remove("opacity-50", "pointer-events-none");
+
+                    // Highlighting inside Cytoscape Graph
+                    if (cy) {
+                        cy.elements().removeClass("highlighted faded");
+                        cy.elements()
+                            .difference(
+                                cy
+                                    .$(`#${id}`)
+                                    .neighborhood()
+                                    .add(cy.$(`#${id}`)),
+                            )
+                            .addClass("faded");
+                        cy.$(`#${id}`).addClass("highlighted");
+                    }
+
+                    document
+                        .querySelectorAll("circle.interactive-node")
+                        .forEach((n) => n.setAttribute("stroke", "#FFF"));
+                    const nodeVolcano = document.getElementById("node-" + id);
+                    if (nodeVolcano)
+                        nodeVolcano.setAttribute("stroke", "#111827");
+
+                    addLog(`ตรวจสอบหลักฐานเชิงลึกสำหรับสาร: ${m.name}`);
+                } else {
+                    showToast(
+                        "ไม่สามารถระบุ ID",
+                        "รหัสสารเคมีชีวภาพไม่อยู่ในสารบบวิเคราะห์อ้างอิงหลัก",
+                        "warn",
+                    );
+                }
+            }
+
+            function closeInspector() {
+                const inspector = document.getElementById("evidence-inspector");
+                inspector.classList.remove(
+                    "w-[320px]",
+                    "opacity-100",
+                    "border-l",
+                    "pointer-events-auto",
+                );
+                inspector.classList.add(
+                    "w-0",
+                    "opacity-0",
+                    "border-l-0",
+                    "pointer-events-none",
+                );
+
+                document
+                    .querySelectorAll("circle.interactive-node")
+                    .forEach((n) => n.setAttribute("stroke", "#FFF"));
+                if (cy) cy.elements().removeClass("highlighted faded");
+            }
+
+            // Simulating the Pipeline execution
+            let simulationInterval = null;
+            function simulatePipeline() {
+                if (simulationInterval || isPipelineRun) return;
+                const btn = document.getElementById("btn-run-pipeline");
+                const prgContainer = document.getElementById(
+                    "pipeline-progress-container",
+                );
+                const prgBar = document.getElementById("pipeline-progress-bar");
+                const stepText = document.getElementById("pipeline-step-text");
+                const pctText = document.getElementById("pipeline-pct-text");
+
+                btn.classList.add("hidden");
+                prgContainer.classList.remove("hidden");
+                addLog(
+                    "ส่งคำสั่งประมวลผลโมเดลและเครือข่ายสู่ระบบ GPU/CPU...",
+                    "info",
+                );
+
+                const phases = [
+                    {
+                        pct: 20,
+                        label: "เฟส 1: เคลียร์ค่าว่าง & ทำ PQN Normalization",
+                    },
+                    {
+                        pct: 40,
+                        label: "เฟส 2: คำนวณความต่างขนาดผลกระทบทางสถิติ",
+                    },
+                    {
+                        pct: 60,
+                        label: "เฟส 3/4: จัดเรียง Topology และสกัด Louvain Module",
+                    },
+                    {
+                        pct: 80,
+                        label: "เฟส 6: วิเคราะห์ Optuna + XGBoost บนหน่วยประมวลผล GPU",
+                    },
+                    {
+                        pct: 100,
+                        label: "เฟส 7: สังเคราะห์แผนภาพหลักฐานหลอมรวมชีวภาพ",
+                    },
+                ];
+
+                let index = 0;
+                simulationInterval = setInterval(() => {
+                    if (index < phases.length) {
+                        const step = phases[index];
+                        prgBar.style.width = `${step.pct}%`;
+                        stepText.innerText = step.label;
+                        pctText.innerText = `${step.pct}%`;
+                        addLog(step.label);
+                        index++;
+                    } else {
+                        clearInterval(simulationInterval);
+                        simulationInterval = null;
+                        isPipelineRun = true;
+
+                        prgContainer.classList.add("hidden");
+                        btn.classList.remove("hidden");
+                        btn.classList.replace(
+                            "bg-brand-orange",
+                            "bg-green-600",
+                        );
+                        btn.classList.replace(
+                            "hover:bg-brand-orangeHover",
+                            "hover:bg-green-700",
+                        );
+                        btn.innerHTML = `<i class="ph-fill ph-check-circle text-lg text-white"></i> <span class="text-white">ประมวลผลสำเร็จ</span>`;
+
+                        addLog(
+                            "การประมวลผลวิเคราะห์ลายพิมพ์ร่วมชีวภาพเสร็จสมบูรณ์เรียบร้อยแล้ว",
+                            "success",
+                        );
+                        showToast(
+                            "สำเร็จ",
+                            "ระบบวิเคราะห์เชิงลึก 7 ขั้นตอนเสร็จสมบูรณ์แบบบูรณาการแล้ว",
+                            "success",
+                        );
+                    }
+                }, 1000);
+            }
+
+            // Init App on load
+            window.onload = async function () {
+                await bootstrapFromBackend();
+                renderTables();
+                initNetwork();
+                document.getElementById("active-panel-title").innerText =
+                    "ภาพรวมแผงควบคุม";
+            };
+        </script>
+    </body>
+</html>

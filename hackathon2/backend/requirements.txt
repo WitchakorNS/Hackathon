@@ -1,0 +1,15 @@
+# Metabolic Signature Discovery Platform — Backend
+# Layer 0-3 run for real; Layer 4-8 are deterministic (no heavy ML deps).
+numpy>=1.26
+scipy>=1.11
+pandas>=2.0
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# --- Reserved for future "full pipeline" upgrade (see Devflow doc) ---
+# statsmodels>=0.14      # Layer 3: Obesity mixed-effects (MixedLM)
+# python-louvain>=0.16   # Layer 5: real Louvain community detection
+# gseapy>=1.1            # Layer 6: KEGG hypergeometric via gseapy
+# xgboost>=2.0           # Layer 7: full-signature model
+# shap>=0.44             # Layer 7: TreeSHAP
+# optuna>=3.5            # Layer 7: hyperparameter tuning

@@ -2822,10 +2822,12 @@ Metabolomics data was normalized using Probabilistic Quotient Normalization (PQN
                 if (cy) cy.elements().removeClass("highlighted faded");
             }
 
-            // Simulating the Pipeline execution
+            // Run the REAL backend pipeline (POST /api/pipeline/rerun), driving the
+            // progress bar as live feedback. Falls back to a local demo animation if
+            // no backend is reachable (index.html opened standalone).
             let simulationInterval = null;
-            function simulatePipeline() {
-                if (simulationInterval || isPipelineRun) return;
+            async function simulatePipeline() {
+                if (simulationInterval) return; // already running
                 const btn = document.getElementById("btn-run-pipeline");
                 const prgContainer = document.getElementById(
                     "pipeline-progress-container",
@@ -2836,71 +2838,115 @@ Metabolomics data was normalized using Probabilistic Quotient Normalization (PQN
 
                 btn.classList.add("hidden");
                 prgContainer.classList.remove("hidden");
+                prgBar.style.width = "0%";
                 addLog(
-                    "ส่งคำสั่งประมวลผลโมเดลและเครือข่ายสู่ระบบ GPU/CPU...",
+                    "ส่งคำสั่งรันไพป์ไลน์จริงไปยัง Backend (POST /api/pipeline/rerun)...",
                     "info",
                 );
+
+                // Kick off the real backend run in parallel with the animation.
+                const runPromise = fetch("/api/pipeline/rerun", {
+                    method: "POST",
+                    cache: "no-store",
+                })
+                    .then((r) =>
+                        r.ok
+                            ? r.json()
+                            : Promise.reject(new Error("backend " + r.status)),
+                    )
+                    .catch(() => null); // null => no backend, demo fallback
 
                 const phases = [
                     {
                         pct: 20,
-                        label: "เฟส 1: เคลียร์ค่าว่าง & ทำ PQN Normalization",
+                        label: "Layer 1-2: Resolution + PQN/log2/z-score Normalization",
                     },
                     {
                         pct: 40,
-                        label: "เฟส 2: คำนวณความต่างขนาดผลกระทบทางสถิติ",
+                        label: "Layer 3: Differential (t-test/Mann-Whitney + BH-FDR)",
                     },
                     {
                         pct: 60,
-                        label: "เฟส 3/4: จัดเรียง Topology และสกัด Louvain Module",
+                        label: "Layer 4-5: Correlation Network + Louvain Modules",
                     },
                     {
                         pct: 80,
-                        label: "เฟส 6: วิเคราะห์ Optuna + XGBoost บนหน่วยประมวลผล GPU",
+                        label: "Layer 6-7: Pathway Enrichment + Feature Importance",
                     },
                     {
                         pct: 100,
-                        label: "เฟส 7: สังเคราะห์แผนภาพหลักฐานหลอมรวมชีวภาพ",
+                        label: "Layer 8: Evidence Convergence Score",
                     },
                 ];
 
                 let index = 0;
-                simulationInterval = setInterval(() => {
-                    if (index < phases.length) {
-                        const step = phases[index];
-                        prgBar.style.width = `${step.pct}%`;
-                        stepText.innerText = step.label;
-                        pctText.innerText = `${step.pct}%`;
-                        addLog(step.label);
-                        index++;
-                    } else {
-                        clearInterval(simulationInterval);
-                        simulationInterval = null;
-                        isPipelineRun = true;
+                await new Promise((resolve) => {
+                    simulationInterval = setInterval(() => {
+                        if (index < phases.length) {
+                            const step = phases[index];
+                            prgBar.style.width = `${step.pct}%`;
+                            stepText.innerText = step.label;
+                            pctText.innerText = `${step.pct}%`;
+                            addLog(step.label);
+                            index++;
+                        } else {
+                            clearInterval(simulationInterval);
+                            simulationInterval = null;
+                            resolve();
+                        }
+                    }, 800);
+                });
 
-                        prgContainer.classList.add("hidden");
-                        btn.classList.remove("hidden");
-                        btn.classList.replace(
-                            "bg-brand-orange",
-                            "bg-green-600",
-                        );
-                        btn.classList.replace(
-                            "hover:bg-brand-orangeHover",
-                            "hover:bg-green-700",
-                        );
-                        btn.innerHTML = `<i class="ph-fill ph-check-circle text-lg text-white"></i> <span class="text-white">ประมวลผลสำเร็จ</span>`;
-
-                        addLog(
-                            "การประมวลผลวิเคราะห์ลายพิมพ์ร่วมชีวภาพเสร็จสมบูรณ์เรียบร้อยแล้ว",
-                            "success",
-                        );
-                        showToast(
-                            "สำเร็จ",
-                            "ระบบวิเคราะห์เชิงลึก 7 ขั้นตอนเสร็จสมบูรณ์แบบบูรณาการแล้ว",
-                            "success",
-                        );
+                // Animation done — apply the real result, or fall back to demo data.
+                const result = await runPromise;
+                const ok =
+                    result &&
+                    result.metabolites &&
+                    Object.keys(result.metabolites).length;
+                if (ok) {
+                    metData = result.metabolites;
+                    recomputeDerived();
+                    renderTables();
+                    if (cy) {
+                        try {
+                            cy.destroy();
+                        } catch (e) {}
                     }
-                }, 1000);
+                    initNetwork();
+                    const n = Object.keys(result.metabolites).length;
+                    const nHigh = Object.values(result.metabolites).filter((m) =>
+                        (m.tier || "").includes("High"),
+                    ).length;
+                    addLog(
+                        `ไพป์ไลน์รันจริงสำเร็จ — ${n} เมตาโบไลต์, ${nHigh} ตัวระดับ High-tier`,
+                        "success",
+                    );
+                    showToast(
+                        "สำเร็จ",
+                        `ประมวลผลจริงเสร็จสมบูรณ์ (${n} เมตาโบไลต์)`,
+                        "success",
+                    );
+                } else {
+                    addLog(
+                        "ไม่พบ Backend — แสดงผลจากข้อมูลสำรองในเครื่อง (โหมดสาธิต)",
+                        "info",
+                    );
+                    showToast(
+                        "โหมดสาธิต",
+                        "ไม่พบ Backend API จึงใช้ข้อมูลสำรองในเครื่อง",
+                        "info",
+                    );
+                }
+
+                prgContainer.classList.add("hidden");
+                btn.classList.remove("hidden");
+                btn.classList.replace("bg-brand-orange", "bg-green-600");
+                btn.classList.replace(
+                    "hover:bg-brand-orangeHover",
+                    "hover:bg-green-700",
+                );
+                btn.innerHTML = `<i class="ph-fill ph-check-circle text-lg text-white"></i> <span class="text-white">ประมวลผลสำเร็จ</span>`;
+                isPipelineRun = true;
             }
 
             // Init App on load
